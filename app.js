@@ -1,4 +1,4 @@
-const APP_VERSION = '1.1.3';
+const APP_VERSION = '1.1.4';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -7,7 +7,11 @@ const loadingScreen = $('#loadingScreen');
 const eventList = $('#eventList');
 const pastEventList = $('#pastEventList');
 const pastEventsBlock = $('#pastEventsBlock');
+const logeList = $('#logeList');
+const pastLogeList = $('#pastLogeList');
+const pastLogeBlock = $('#pastLogeBlock');
 const nextEvent = $('#nextEvent');
+const nextLoge = $('#nextLoge');
 const modal = $('#eventModal');
 const modalContent = $('#modalContent');
 const filterSelect = $('#filterSelect');
@@ -30,6 +34,7 @@ const joinActivityId = $('#joinActivityId');
 const joinActivityName = $('#joinActivityName');
 
 let events = [];
+let logeaftener = [];
 let initiativer = [];
 let participants = [];
 let initiativesLoading = true;
@@ -63,6 +68,9 @@ function daDate(iso, weekday=true){
   }).format(new Date(iso + 'T12:00:00'));
 }
 
+function shortDate(iso){
+  return new Intl.DateTimeFormat('da-DK',{day:'numeric', month:'short'}).format(new Date(iso + 'T12:00:00'));
+}
 
 function tag(type){
   return type === 'internal' ? 'Internt arrangement' : 'Offentligt arrangement';
@@ -84,11 +92,21 @@ function shownEvents(){
   return upcomingEvents().filter(e => currentFilter === 'all' || e.type === currentFilter);
 }
 
+function upcomingLoge(){
+  return sortByDate(logeaftener).filter(isUpcoming);
+}
+
+function pastLoge(){
+  return sortByDate(logeaftener).filter(e => !isUpcoming(e)).reverse();
+}
 
 function byId(id){
   return events.find(e => e.id === id);
 }
 
+function logeById(id){
+  return logeaftener.find(e => e.id === id);
+}
 
 function googleCalendarUrl(item){
   if(!item.start || !item.end) return '#';
@@ -100,8 +118,26 @@ function googleCalendarUrl(item){
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
 }
 
+function logeCalendarUrl(item){
+  if(!item.time) return '#';
+  const endTime = item.end || addMinutes(item.time, 120);
+  const start = item.date.replaceAll('-','') + 'T' + item.time.replace(':','') + '00';
+  const end = item.date.replaceAll('-','') + 'T' + endTime.replace(':','') + '00';
+  const text = encodeURIComponent('Logeaften – ' + item.title);
+  const details = encodeURIComponent(item.description || '');
+  const location = encodeURIComponent('Logen, Frederiksgade 15, Slagelse');
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
+}
 
+function addMinutes(time, minutes){
+  const [h,m] = time.split(':').map(Number);
+  const d = new Date(2000,0,1,h,m + minutes);
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
 
+function appleCalendarData(item){
+  return '';
+}
 
 function renderEventHero(){
   const e = upcomingEvents()[0] || sortByDate(events)[0];
@@ -155,7 +191,57 @@ function renderEventList(){
   `).join('');
 }
 
+function renderLogeHero(){
+  const e = upcomingLoge()[0];
+  if(!e){
+    nextLoge.innerHTML = `<div class="empty">Ingen kommende logeaftener oprettet.</div>`;
+    return;
+  }
 
+  nextLoge.innerHTML = `
+    <button class="next-card no-poster-card" onclick="openLoge('${e.id}')" aria-label="Åbn ${e.title}">
+      <div class="event-icon large">◆</div>
+      <div class="next-info">
+        <span class="tag">Logeaften</span>
+        <h3>${e.title}</h3>
+        <div class="match">${e.time ? 'Mødet kl. ' + e.time : 'Intet møde'}</div>
+        <div class="meta">
+          <div><span>📅</span><span>${daDate(e.date)}</span></div>
+          <div><span>🕘</span><span>${e.time ? 'Kl. ' + e.time : '—'}</span></div>
+          <div><span>📍</span><span>Logen</span></div>
+        </div>
+        ${e.description ? `<p class="desc">${e.description}</p>` : ''}
+        <div class="card-arrow">Tryk for detaljer ›</div>
+      </div>
+    </button>`;
+}
+
+function renderLogeList(){
+  const items = upcomingLoge();
+  logeList.innerHTML = items.length ? items.map(e => `
+    <button class="event-card" onclick="openLoge('${e.id}')">
+      <div class="date-box small">${shortDate(e.date)}</div>
+      <div>
+        <h3>${e.title}</h3>
+        <p>${e.time ? 'Mødet kl. ' + e.time : 'Intet møde'}${e.description ? '<br>' + e.description : ''}</p>
+      </div>
+      <div class="chev">›</div>
+    </button>
+  `).join('') : `<div class="empty">Ingen kommende logeaftener.</div>`;
+
+  const old = pastLoge();
+  pastLogeBlock.hidden = old.length === 0;
+  pastLogeList.innerHTML = old.map(e => `
+    <button class="event-card muted-card" onclick="openLoge('${e.id}')">
+      <div class="date-box small">${shortDate(e.date)}</div>
+      <div>
+        <h3>${e.title}</h3>
+        <p>${e.time ? 'Kl. ' + e.time : 'Intet møde'}</p>
+      </div>
+      <div class="chev">›</div>
+    </button>
+  `).join('');
+}
 
 window.openEvent = function(id){
   const e = byId(id);
@@ -180,6 +266,26 @@ window.openEvent = function(id){
   modal.showModal();
 }
 
+window.openLoge = function(id){
+  const e = logeById(id);
+  if(!e) return;
+
+  modalContent.innerHTML = `
+    <div class="loge-detail-icon">◆</div>
+    <h2 class="modal-title">${e.title}</h2>
+    <p class="modal-sub">Logeaften</p>
+    <div class="info-grid">
+      <div class="info-row"><span>📅</span><div>${daDate(e.date)}</div></div>
+      <div class="info-row"><span>🕘</span><div>${e.time ? 'Mødet kl. ' + e.time : 'Intet møde'}</div></div>
+      <div class="info-row"><span>📍</span><div>Logen</div></div>
+    </div>
+    ${e.description ? `<p class="description">${e.description}</p>` : ''}
+    ${e.time ? `<div class="modal-actions"><a class="btn primary" href="${logeCalendarUrl(e)}" target="_blank" rel="noopener">Tilføj kalender</a></div>` : ''}
+  `;
+  modal.showModal();
+}
+
+
 
 function upcomingInitiatives(){ return sortByDate(initiativer).filter(isUpcoming); }
 function pastInitiatives(){ return sortByDate(initiativer).filter(e => !isUpcoming(e)).reverse(); }
@@ -199,15 +305,6 @@ function firstValue(row, keys){
     if(row && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') return row[key];
   }
   return '';
-}
-
-
-function escapeAttr(value){
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 async function fetchAppsScriptAction(action, force=false){
@@ -299,69 +396,42 @@ async function postToAppsScript(action, payload){
     throw new Error('Apps Script URL mangler i app.js');
   }
 
-  const clearCaches = () => {
-    appDataCache = null;
-    window.__appsScriptCache = {};
-  };
+  // Apps Script-koden i det nye Sheet bruger doGet, så skrivning skal sendes som query params.
+  // Det undgår samtidig CORS/problemer med POST fra GitHub Pages.
+  const url = new URL(APPS_SCRIPT_URL);
+  url.searchParams.set('action', action);
+  Object.entries(payload || {}).forEach(([key, value]) => {
+    url.searchParams.set(key, value == null ? '' : String(value));
+  });
+  url.searchParams.set('_', Date.now());
 
-  const assertOk = async res => {
-    if(!res.ok) throw new Error('Apps Script HTTP ' + res.status);
-    const data = await res.json();
-    if(!(data.ok || data.success)) throw new Error(data.error || 'Apps Script returnerede fejl');
-    clearCaches();
-    return data;
-  };
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    cache: 'no-store'
+  });
 
-  // Først GET med query params, fordi nogle Apps Scripts kun har doGet.
-  try{
-    const url = new URL(APPS_SCRIPT_URL);
-    url.searchParams.set('action', action);
-    Object.entries(payload || {}).forEach(([key, value]) => {
-      url.searchParams.set(key, value == null ? '' : String(value));
-    });
-    url.searchParams.set('_', Date.now());
+  if(!res.ok) throw new Error('Apps Script HTTP ' + res.status);
 
-    const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
-    return await assertOk(res);
-  }catch(getErr){
-    console.warn('GET til Apps Script fejlede, prøver POST:', getErr);
+  const data = await res.json();
+  if(!(data.ok || data.success)){
+    throw new Error(data.error || 'Apps Script returnerede fejl');
   }
 
-  // Fallback til POST, fordi tilmeldingsdelen bruger den model.
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, ...(payload || {}) })
-  });
-  return await assertOk(res);
+  appDataCache = null;
+  window.__appsScriptCache = {};
+  return data;
 }
 
 function openJoinDialog(initiative){
-  if(!joinModal || !initiative) return;
-
-  joinForm.reset();
+  if(!joinModal) return;
   joinActivityId.value = initiative.id || '';
   joinActivityName.value = initiative.title || '';
   joinActivityTitle.textContent = `Du tilmelder dig: ${initiative.title}`;
   joinStatus.textContent = '';
-
-  const showJoinModal = () => {
-    try{
-      if(!joinModal.open) joinModal.showModal();
-    }catch(err){
-      console.error('Kunne ikke åbne deltager-dialog:', err);
-      joinModal.setAttribute('open', '');
-    }
-  };
-
-  // Luk detalje-dialogen først. Nogle mobil/PWA-browsere nægter at åbne
-  // en ny modal dialog oven på en allerede åben modal dialog.
-  if(modal && modal.open){
-    modal.close();
-    setTimeout(showJoinModal, 80);
-  }else{
-    showJoinModal();
-  }
+  joinForm.reset();
+  joinActivityId.value = initiative.id || '';
+  joinActivityName.value = initiative.title || '';
+  joinModal.showModal();
 }
 
 function participationUrl(initiative){
@@ -439,7 +509,7 @@ function renderInitiatives(){
   initiativeList.innerHTML = items.length ? items.map(e => {
     const names = participantsFor(e);
     return `
-    <button class="event-card initiative-card" type="button" data-initiative-id="${escapeAttr(e.id)}">
+    <button class="event-card" onclick="openInitiative('${e.id}')">
       <div class="event-icon">${e.icon || '🤝'}</div>
       <div><h3>${e.title}</h3><p><strong>${e.host || ''}</strong><br>${daDate(e.date,false)}${e.time ? ' · kl. ' + e.time : ''}<br><span class="participant-count">👥 ${names.length} deltager${names.length === 1 ? '' : 'e'}</span></p></div>
       <div class="chev">›</div>
@@ -451,14 +521,12 @@ function renderInitiatives(){
     pastInitiativeList.innerHTML = old.map(e => {
       const names = participantsFor(e);
       return `
-      <button class="event-card muted-card initiative-card" type="button" data-initiative-id="${escapeAttr(e.id)}">
+      <button class="event-card muted-card" onclick="openInitiative('${e.id}')">
         <div class="event-icon">${e.icon || '🤝'}</div>
         <div><h3>${e.title}</h3><p><strong>${e.host || ''}</strong><br>${daDate(e.date,false)}<br><span class="participant-count">👥 ${names.length} deltager${names.length === 1 ? '' : 'e'}</span></p></div>
         <div class="chev">›</div>
       </button>`}).join('');
   }
-
-  // Klik håndteres med event delegation længere nede, så det også virker efter gen-render.
 }
 
 
@@ -493,12 +561,10 @@ window.openInitiative = function(id){
     <p class="description">${e.text || ''}</p>
     ${participantList}
     <div class="modal-actions">
-      <button id="joinInitiativeBtn" class="btn primary" type="button" data-initiative-id="${escapeAttr(e.id)}">Jeg deltager</button>
+      <button class="btn primary" type="button" onclick="openJoinForInitiative(\'${e.id}\')">Jeg deltager</button>
       <a class="btn soft" href="${initiativeCalendarUrl(e)}" target="_blank" rel="noopener">Tilføj kalender</a>
     </div>
     <p class="sheet-status-note">Skriv dit navn direkte i appen. Deltagerlisten opdateres automatisk efter tilmelding.</p>`;
-
-  if(modal.open) modal.close();
   modal.showModal();
 }
 
@@ -840,6 +906,7 @@ async function init(){
     if(nextEvent) nextEvent.innerHTML = `<div class="empty">Kunne ikke indlæse events.json.</div>`;
   }
 
+
   renderAll();
   SignupApp.init();
 
@@ -866,28 +933,6 @@ if(filterSelect) filterSelect.addEventListener('change', e => {
   renderEventList();
 });
 
-function handleInitiativeCardClick(e){
-  const card = e.target.closest('.initiative-card');
-  if(!card) return;
-  e.preventDefault();
-  const id = card.dataset.initiativeId;
-  if(id) openInitiative(id);
-}
-
-if(initiativeList) initiativeList.addEventListener('click', handleInitiativeCardClick);
-if(pastInitiativeList) pastInitiativeList.addEventListener('click', handleInitiativeCardClick);
-
-if(modalContent){
-  modalContent.addEventListener('click', e => {
-    const btn = e.target.closest('#joinInitiativeBtn');
-    if(!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const id = btn.dataset.initiativeId;
-    if(id) openJoinForInitiative(id);
-  });
-}
-
 $('[data-close]').addEventListener('click', () => modal.close());
 
 $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
@@ -899,12 +944,6 @@ $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
   if(targetView) targetView.classList.add('active-view');
   window.scrollTo({top:0, behavior:'smooth'});
 }));
-
-window.addEventListener('message', event => {
-  if(!event.data || event.data.type !== 'tilmelding-scroll-top') return;
-  const frame = document.getElementById('tilmeldingFrame');
-  if(frame) frame.scrollIntoView({behavior:'smooth', block:'start'});
-});
 
 
 if(suggestInitiativeBtn){

@@ -1,4 +1,4 @@
-const CACHE_VERSION = '1.1.3';
+const CACHE_VERSION = '1.1.4';
 const CACHE_PREFIX = 'concordia-aktiviteter-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
@@ -38,7 +38,6 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if(url.hostname.includes('script.google.com') || url.hostname.includes('docs.google.com')) return;
-
   event.respondWith(
     fetch(event.request)
       .then(response => {
