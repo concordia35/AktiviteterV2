@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+  <meta name="theme-color" content="#78101d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Concordia" />
+  <title>Det sker i Concordia</title>
+  <link rel="manifest" href="manifest.webmanifest?v=1.1.1" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.1.1" />
+  <link rel="stylesheet" href="style.css?v=1.1.1" />
+</head>
+<body>
+  <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
+    <div class="loading-card">
+      <img src="assets/chainlinks.jpg" alt="" class="loading-chain">
+      <div class="loading-title">Det sker i Concordia</div>
+      <div class="loading-text">Henter aktiviteter...</div>
+      <div class="loading-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <div id="updateBanner" class="update-banner" hidden>
+    <span>Ny version er klar.</span>
+    <button id="updateNowBtn" type="button">Opdater nu</button>
+  </div>
+
+
+  <div class="app-shell">
+    <header class="app-header">
+      <img class="chainmark-img" src="assets/chainlinks.jpg" alt="Tre kædeled">
+      <h1>Det sker i Concordia</h1>
+      <p>Intern side for brødre – del ikke offentligt</p>
+      <button id="installBtn" class="install-btn" hidden>Installer app</button>
+    </header>
+
+    <main id="viewOverview" class="view active-view">
+      <section class="next-block">
+        <div class="section-title"><span></span><h2>Næste aktivitet</h2></div>
+        <div id="nextEvent"></div>
+      </section>
+
+      <section class="list-block">
+        <div class="list-head">
+          <div class="section-title"><span></span><h2>Kommende aktiviteter</h2></div>
+          <select id="filterSelect" aria-label="Filtrer arrangementer">
+            <option value="all">Alle</option>
+            <option value="internal">Interne</option>
+            <option value="public">Offentlige</option>
+          </select>
+        </div>
+        <div id="eventList" class="event-list"></div>
+      </section>
+
+      <section class="list-block" id="pastEventsBlock" hidden>
+        <details>
+          <summary>Tidligere aktiviteter</summary>
+          <div id="pastEventList" class="event-list archive-list"></div>
+        </details>
+      </section>
+    </main>
+    <main id="viewLoge" class="view">
+      <section class="page-card signup-page-card">
+        <div class="section-title"><span></span><h2>Tilmelding</h2></div>
+        <p class="signup-intro">Vælg dit navn én gang. Derefter kan du tilmelde dig kommende aftener med eller uden mad.</p>
+
+        <div class="signup-member-row">
+          <select id="signupMemberSelect" aria-label="Vælg navn">
+            <option value="">Vælg navn</option>
+          </select>
+          <button id="signupSaveMemberBtn" class="btn primary" type="button">Gem</button>
+        </div>
+        <p id="signupSyncStatus" class="signup-sync-status">Henter fra Google Sheet…</p>
+      </section>
+
+      <section class="signup-stats-grid" aria-label="Oversigt over tilmeldinger">
+        <article class="signup-stat-card">
+          <span id="signupTotalEvents">0</span>
+          <small>Kommende aftener</small>
+        </article>
+        <article class="signup-stat-card">
+          <span id="signupMyAttending">0</span>
+          <small>Du deltager</small>
+        </article>
+        <article class="signup-stat-card">
+          <span id="signupMyMeals">0</span>
+          <small>Du spiser med</small>
+        </article>
+      </section>
+
+      <section class="list-block signup-list-block">
+        <div class="section-title"><span></span><h2>Kommende aftener</h2></div>
+        <div id="signupEventsList" class="signup-events-list"></div>
+      </section>
+    </main>
+
+    <main id="viewInitiatives" class="view">
+      <section class="next-block">
+        <div class="section-title"><span></span><h2>Broderinitiativer</h2></div>
+        <div class="page-card intro-card">
+          <p>Her kan brødre foreslå mindre initiativer som gåture, kaffe, kortspil eller andre uformelle aktiviteter.</p>
+          <p>Forslag sendes direkte her fra appen og vises først, når de er godkendt.</p>
+          <button id="suggestInitiativeBtn" class="btn primary wide-btn" type="button">Foreslå initiativ</button>
+        </div>
+      </section>
+      <section class="list-block">
+        <div class="section-title"><span></span><h2>Kommende initiativer</h2></div>
+        <div id="initiativeList" class="event-list"></div>
+      </section>
+      <section class="list-block" id="pastInitiativeBlock" hidden>
+        <details><summary>Tidligere initiativer</summary><div id="pastInitiativeList" class="event-list archive-list"></div></details>
+      </section>
+    </main>
+
+    <main id="viewAbout" class="view">
+      <section class="page-card">
+        <div class="section-title"><span></span><h2>Om</h2></div>
+        <p>Denne app er lavet for at give brødrene et samlet og hurtigt overblik over, hvad der sker i Concordia.</p>
+        <p>Her kan du se kommende aktiviteter, tilmelde dig kommende aftener og lægge arrangementer direkte i din kalender.</p>
+        <p>Formålet er enkelt: mindre roden rundt i gamle mails og opslag – mere overblik på mobilen.</p>
+        <p>Appen samler aktiviteter, tilmelding til kommende aftener og broderinitiativer ét sted.</p>
+
+        <div class="about-qr-block" aria-label="QR-kode til siden">
+          <div class="about-qr-text">
+            <h3>QR-kode til siden</h3>
+            <p>Scan koden for hurtigt at åbne siden på mobilen.</p>
+          </div>
+          <figure class="qr-card">
+            <img src="qr.png?v=1.1.1" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
+            <figcaption>QR-kode</figcaption>
+            <div class="qr-fallback">Læg <strong>qr.png</strong> i samme mappe som <strong>index.html</strong>.</div>
+          </figure>
+        </div>
+
+        <p class="app-version">Version <span id="appVersion">1.1.1</span></p>
+        <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigation">
+      <button class="nav-btn active" data-view="overview"><span>▦</span><small>Aktiviteter</small></button>
+      <button class="nav-btn" data-view="loge"><span>✓</span><small>Tilmelding</small></button>
+      <button class="nav-btn" data-view="initiatives"><span>🤝</span><small>Initiativer</small></button>
+      <button class="nav-btn" data-view="about"><span>ⓘ</span><small>Om</small></button>
+    </nav>
+  </div>
+
+  <dialog id="eventModal" class="sheet-dialog">
+    <div class="sheet">
+      <button class="close" data-close aria-label="Luk">×</button>
+      <div class="sheet-scroll">
+        <div id="modalContent"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="initiativeModal" class="sheet-dialog">
+    <div class="sheet">
+      <button class="close" data-close-initiative aria-label="Luk">×</button>
+      <div class="sheet-scroll">
+        <div class="section-title"><span></span><h2>Foreslå initiativ</h2></div>
+        <p class="form-help">Udfyld felterne. Når du trykker send, bliver forslaget sendt til Lars på mail. Aktiviteten kommer først på siden, når den er godkendt.</p>
+        <form id="initiativeForm" class="initiative-form">
+          <label>Titel<input id="initiativeTitle" type="text" placeholder="F.eks. Gåtur i Lystskoven" required></label>
+          <label>Dato<input id="initiativeDate" type="date" required></label>
+          <label>Tidspunkt<input id="initiativeTime" type="time"></label>
+          <label>Sted<input id="initiativePlace" type="text" placeholder="F.eks. p-pladsen ved Lystskoven"></label>
+          <label>Navn<input id="initiativeHost" type="text" placeholder="Dit navn" required></label>
+          <label>Beskrivelse<textarea id="initiativeText" rows="5" placeholder="Skriv kort hvad aktiviteten går ud på" required></textarea></label>
+          <button class="btn primary wide-btn" type="submit">Send forslag</button>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="initiativeSubmitModal" class="sheet-dialog">
+    <div class="sheet">
+      <button class="close" data-close-submit-initiative aria-label="Luk">×</button>
+      <div class="sheet-scroll">
+        <div class="section-title"><span></span><h2>Foreslå initiativ</h2></div>
+        <p class="form-help">Forslaget sendes til godkendelse, før det bliver synligt i appen.</p>
+        <form id="initiativeSubmitForm" class="initiative-form">
+          <label>Titel<input id="newInitiativeTitle" type="text" placeholder="F.eks. Gåtur i Lystskoven" required></label>
+          <label>Dato<input id="newInitiativeDate" type="date" required></label>
+          <label>Tidspunkt<input id="newInitiativeTime" type="time"></label>
+          <label>Sted<input id="newInitiativePlace" type="text" placeholder="F.eks. Slagelse Lystskov"></label>
+          <label>Kontaktperson<input id="newInitiativeHost" type="text" placeholder="Dit navn" required></label>
+          <label>Beskrivelse<textarea id="newInitiativeText" rows="5" placeholder="Skriv kort hvad aktiviteten går ud på" required></textarea></label>
+          <button id="submitInitiativeButton" class="btn primary wide-btn" type="submit">Send forslag</button>
+          <p id="initiativeSubmitStatus" class="form-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="joinModal" class="sheet-dialog">
+    <div class="sheet">
+      <button class="close" data-close-join aria-label="Luk">×</button>
+      <div class="sheet-scroll">
+        <div class="section-title"><span></span><h2>Jeg deltager</h2></div>
+        <p id="joinActivityTitle" class="form-help"></p>
+        <form id="joinForm" class="initiative-form">
+          <input id="joinActivityId" type="hidden">
+          <input id="joinActivityName" type="hidden">
+          <label>Dit navn<input id="joinName" type="text" placeholder="Skriv dit navn" required></label>
+          <button id="joinSubmitButton" class="btn primary wide-btn" type="submit">Tilmeld mig</button>
+          <p id="joinStatus" class="form-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+    <dialog id="signupModal" class="sheet-dialog">
+    <div class="sheet signup-sheet">
+      <button id="signupCloseModalBtn" class="close" type="button" aria-label="Luk">×</button>
+      <div class="sheet-scroll">
+        <p id="signupModalDate" class="modal-sub signup-modal-date"></p>
+        <h2 id="signupModalTitle" class="modal-title signup-modal-title"></h2>
+        <p id="signupModalDescription" class="description signup-modal-description"></p>
+        <div id="signupModalCalendar" class="modal-actions signup-calendar-row"></div>
+
+        <div class="signup-choice-block">
+          <h3>Deltager du?</h3>
+          <div class="signup-choice-row">
+            <button type="button" data-signup-attending="yes" class="signup-choice-btn">Deltager</button>
+            <button type="button" data-signup-attending="no" class="signup-choice-btn">Deltager ikke</button>
+          </div>
+        </div>
+
+        <div id="signupMealBlock" class="signup-choice-block">
+          <h3>Mad</h3>
+          <div class="signup-choice-row">
+            <button type="button" data-signup-meal="yes" class="signup-choice-btn">Spiser med</button>
+            <button type="button" data-signup-meal="no" class="signup-choice-btn">Spiser ikke med</button>
+          </div>
+        </div>
+
+        <div id="signupGuestBlock" class="signup-choice-block" hidden>
+          <h3>Gæst</h3>
+          <label class="signup-checkline"><input id="signupGuestYes" type="checkbox"> Jeg tager en gæst med</label>
+          <div id="signupGuestDetails" class="signup-guest-details" hidden>
+            <label>Gæstens navn<input id="signupGuestName" type="text" placeholder="Navn på gæst"></label>
+            <label class="signup-checkline"><input id="signupGuestMeal" type="checkbox"> Gæsten spiser med</label>
+          </div>
+        </div>
+
+        <label class="signup-note-label">Bemærkning
+          <textarea id="signupNoteInput" rows="3" placeholder="Valgfrit"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button id="signupSaveSignupBtn" class="btn primary wide-btn" type="button">Gem</button>
+        </div>
+        <p id="signupSaveStatus" class="signup-save-status" aria-live="polite"></p>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="app.js?v=1.1.1"></script>
+</body>
+</html>
