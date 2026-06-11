@@ -1,4 +1,4 @@
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.1.3';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -299,42 +299,69 @@ async function postToAppsScript(action, payload){
     throw new Error('Apps Script URL mangler i app.js');
   }
 
-  // Apps Script-koden i det nye Sheet bruger doGet, så skrivning skal sendes som query params.
-  // Det undgår samtidig CORS/problemer med POST fra GitHub Pages.
-  const url = new URL(APPS_SCRIPT_URL);
-  url.searchParams.set('action', action);
-  Object.entries(payload || {}).forEach(([key, value]) => {
-    url.searchParams.set(key, value == null ? '' : String(value));
-  });
-  url.searchParams.set('_', Date.now());
+  const clearCaches = () => {
+    appDataCache = null;
+    window.__appsScriptCache = {};
+  };
 
-  const res = await fetch(url.toString(), {
-    method: 'GET',
-    cache: 'no-store'
-  });
+  const assertOk = async res => {
+    if(!res.ok) throw new Error('Apps Script HTTP ' + res.status);
+    const data = await res.json();
+    if(!(data.ok || data.success)) throw new Error(data.error || 'Apps Script returnerede fejl');
+    clearCaches();
+    return data;
+  };
 
-  if(!res.ok) throw new Error('Apps Script HTTP ' + res.status);
+  // Først GET med query params, fordi nogle Apps Scripts kun har doGet.
+  try{
+    const url = new URL(APPS_SCRIPT_URL);
+    url.searchParams.set('action', action);
+    Object.entries(payload || {}).forEach(([key, value]) => {
+      url.searchParams.set(key, value == null ? '' : String(value));
+    });
+    url.searchParams.set('_', Date.now());
 
-  const data = await res.json();
-  if(!(data.ok || data.success)){
-    throw new Error(data.error || 'Apps Script returnerede fejl');
+    const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
+    return await assertOk(res);
+  }catch(getErr){
+    console.warn('GET til Apps Script fejlede, prøver POST:', getErr);
   }
 
-  appDataCache = null;
-  window.__appsScriptCache = {};
-  return data;
+  // Fallback til POST, fordi tilmeldingsdelen bruger den model.
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, ...(payload || {}) })
+  });
+  return await assertOk(res);
 }
 
 function openJoinDialog(initiative){
-  if(!joinModal) return;
+  if(!joinModal || !initiative) return;
+
+  joinForm.reset();
   joinActivityId.value = initiative.id || '';
   joinActivityName.value = initiative.title || '';
   joinActivityTitle.textContent = `Du tilmelder dig: ${initiative.title}`;
   joinStatus.textContent = '';
-  joinForm.reset();
-  joinActivityId.value = initiative.id || '';
-  joinActivityName.value = initiative.title || '';
-  joinModal.showModal();
+
+  const showJoinModal = () => {
+    try{
+      if(!joinModal.open) joinModal.showModal();
+    }catch(err){
+      console.error('Kunne ikke åbne deltager-dialog:', err);
+      joinModal.setAttribute('open', '');
+    }
+  };
+
+  // Luk detalje-dialogen først. Nogle mobil/PWA-browsere nægter at åbne
+  // en ny modal dialog oven på en allerede åben modal dialog.
+  if(modal && modal.open){
+    modal.close();
+    setTimeout(showJoinModal, 80);
+  }else{
+    showJoinModal();
+  }
 }
 
 function participationUrl(initiative){
@@ -431,9 +458,7 @@ function renderInitiatives(){
       </button>`}).join('');
   }
 
-  document.querySelectorAll('.initiative-card').forEach(card => {
-    card.addEventListener('click', () => openInitiative(card.dataset.initiativeId));
-  });
+  // Klik håndteres med event delegation længere nede, så det også virker efter gen-render.
 }
 
 
@@ -472,10 +497,8 @@ window.openInitiative = function(id){
       <a class="btn soft" href="${initiativeCalendarUrl(e)}" target="_blank" rel="noopener">Tilføj kalender</a>
     </div>
     <p class="sheet-status-note">Skriv dit navn direkte i appen. Deltagerlisten opdateres automatisk efter tilmelding.</p>`;
-  const joinBtn = document.getElementById('joinInitiativeBtn');
-  if(joinBtn){
-    joinBtn.addEventListener('click', () => openJoinForInitiative(joinBtn.dataset.initiativeId));
-  }
+
+  if(modal.open) modal.close();
   modal.showModal();
 }
 
@@ -842,6 +865,28 @@ if(filterSelect) filterSelect.addEventListener('change', e => {
   currentFilter = e.target.value;
   renderEventList();
 });
+
+function handleInitiativeCardClick(e){
+  const card = e.target.closest('.initiative-card');
+  if(!card) return;
+  e.preventDefault();
+  const id = card.dataset.initiativeId;
+  if(id) openInitiative(id);
+}
+
+if(initiativeList) initiativeList.addEventListener('click', handleInitiativeCardClick);
+if(pastInitiativeList) pastInitiativeList.addEventListener('click', handleInitiativeCardClick);
+
+if(modalContent){
+  modalContent.addEventListener('click', e => {
+    const btn = e.target.closest('#joinInitiativeBtn');
+    if(!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const id = btn.dataset.initiativeId;
+    if(id) openJoinForInitiative(id);
+  });
+}
 
 $('[data-close]').addEventListener('click', () => modal.close());
 
