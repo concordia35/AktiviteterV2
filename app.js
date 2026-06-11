@@ -1,4 +1,4 @@
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -199,6 +199,15 @@ function firstValue(row, keys){
     if(row && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') return row[key];
   }
   return '';
+}
+
+
+function escapeAttr(value){
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 async function fetchAppsScriptAction(action, force=false){
@@ -403,7 +412,7 @@ function renderInitiatives(){
   initiativeList.innerHTML = items.length ? items.map(e => {
     const names = participantsFor(e);
     return `
-    <button class="event-card" onclick="openInitiative('${e.id}')">
+    <button class="event-card initiative-card" type="button" data-initiative-id="${escapeAttr(e.id)}">
       <div class="event-icon">${e.icon || '🤝'}</div>
       <div><h3>${e.title}</h3><p><strong>${e.host || ''}</strong><br>${daDate(e.date,false)}${e.time ? ' · kl. ' + e.time : ''}<br><span class="participant-count">👥 ${names.length} deltager${names.length === 1 ? '' : 'e'}</span></p></div>
       <div class="chev">›</div>
@@ -415,12 +424,16 @@ function renderInitiatives(){
     pastInitiativeList.innerHTML = old.map(e => {
       const names = participantsFor(e);
       return `
-      <button class="event-card muted-card" onclick="openInitiative('${e.id}')">
+      <button class="event-card muted-card initiative-card" type="button" data-initiative-id="${escapeAttr(e.id)}">
         <div class="event-icon">${e.icon || '🤝'}</div>
         <div><h3>${e.title}</h3><p><strong>${e.host || ''}</strong><br>${daDate(e.date,false)}<br><span class="participant-count">👥 ${names.length} deltager${names.length === 1 ? '' : 'e'}</span></p></div>
         <div class="chev">›</div>
       </button>`}).join('');
   }
+
+  document.querySelectorAll('.initiative-card').forEach(card => {
+    card.addEventListener('click', () => openInitiative(card.dataset.initiativeId));
+  });
 }
 
 
@@ -455,10 +468,14 @@ window.openInitiative = function(id){
     <p class="description">${e.text || ''}</p>
     ${participantList}
     <div class="modal-actions">
-      <button class="btn primary" type="button" onclick="openJoinForInitiative(\'${e.id}\')">Jeg deltager</button>
+      <button id="joinInitiativeBtn" class="btn primary" type="button" data-initiative-id="${escapeAttr(e.id)}">Jeg deltager</button>
       <a class="btn soft" href="${initiativeCalendarUrl(e)}" target="_blank" rel="noopener">Tilføj kalender</a>
     </div>
     <p class="sheet-status-note">Skriv dit navn direkte i appen. Deltagerlisten opdateres automatisk efter tilmelding.</p>`;
+  const joinBtn = document.getElementById('joinInitiativeBtn');
+  if(joinBtn){
+    joinBtn.addEventListener('click', () => openJoinForInitiative(joinBtn.dataset.initiativeId));
+  }
   modal.showModal();
 }
 
