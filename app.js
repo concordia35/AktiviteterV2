@@ -1,4 +1,4 @@
-const APP_VERSION = '1.1.4';
+const APP_VERSION = '1.3.0';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -909,6 +909,7 @@ async function init(){
 
   renderAll();
   SignupApp.init();
+  GalleryApp.init({ load: false });
 
   if(loadingScreen){
     setTimeout(() => loadingScreen.classList.add('hidden'), 250);
@@ -942,6 +943,7 @@ $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
   $$('.view').forEach(view => view.classList.remove('active-view'));
   const targetView = $('#view' + v[0].toUpperCase() + v.slice(1));
   if(targetView) targetView.classList.add('active-view');
+  if(v === 'gallery') GalleryApp.init();
   window.scrollTo({top:0, behavior:'smooth'});
 }));
 
@@ -1716,6 +1718,475 @@ const SignupApp = (() => {
   }
 
   return { init, refreshFromSheet, render };
+})();
+
+
+const GalleryApp = (() => {
+  const config = Object.assign({
+    appsScriptUrl: '',
+    maxImageDimension: 1800,
+    jpegQuality: 0.82
+  }, window.CONCORDIA_GALLERY_CONFIG || {});
+
+  const state = {
+    initialized: false,
+    loaded: false,
+    loading: false,
+    images: [],
+    activeFolder: ''
+  };
+
+  const els = {};
+
+  function cacheEls(){
+    els.grid = $('#galleryGrid');
+    els.syncStatus = $('#gallerySyncStatus');
+    els.uploadBtn = $('#galleryUploadBtn');
+    els.uploadModal = $('#galleryUploadModal');
+    els.uploadCloseBtn = $('#galleryUploadCloseBtn');
+    els.uploadForm = $('#galleryUploadForm');
+    els.uploaderName = $('#galleryUploaderName');
+    els.eventName = $('#galleryEventName');
+    els.fileInput = $('#galleryFileInput');
+    els.selectedFiles = $('#gallerySelectedFiles');
+    els.submitBtn = $('#galleryUploadSubmitBtn');
+    els.uploadStatus = $('#galleryUploadStatus');
+    els.progress = $('#galleryUploadProgress');
+    els.progressBar = els.progress?.querySelector('span');
+    els.imageModal = $('#galleryImageModal');
+    els.imageCloseBtn = $('#galleryImageCloseBtn');
+    els.largeImage = $('#galleryLargeImage');
+    els.largeCaption = $('#galleryLargeCaption');
+  }
+
+  function init(options = {}){
+    if(!state.initialized){
+      cacheEls();
+      if(!els.grid || !els.uploadBtn || !els.uploadModal) return;
+      bind();
+      restoreName();
+      populateActivityOptions();
+      state.initialized = true;
+      render();
+    }
+    if(options.load !== false && !state.loaded && !state.loading) loadGallery();
+  }
+
+  function bind(){
+    els.uploadBtn.addEventListener('click', openUpload);
+    els.uploadCloseBtn?.addEventListener('click', () => els.uploadModal.close());
+    els.fileInput?.addEventListener('change', updateSelectedFiles);
+    els.uploadForm?.addEventListener('submit', uploadImages);
+    els.imageCloseBtn?.addEventListener('click', closeLargeImage);
+    els.imageModal?.addEventListener('click', event => {
+      if(event.target === els.imageModal) closeLargeImage();
+    });
+  }
+
+  function isConfigured(){
+    return /^https:\/\/script\.google\.com\/macros\/s\//.test(String(config.appsScriptUrl || '').trim());
+  }
+
+  function restoreName(){
+    try{
+      const saved = localStorage.getItem('concordia_gallery_uploader');
+      if(saved && els.uploaderName) els.uploaderName.value = saved;
+    }catch{}
+  }
+
+  function populateActivityOptions(){
+    if(!els.eventName) return;
+    const current = els.eventName.value;
+    const activityOptions = [...events]
+      .filter(item => item && item.title)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+      .map(item => {
+        const dateText = item.date ? shortActivityDate(item.date) : '';
+        const label = [item.title, dateText].filter(Boolean).join(' · ');
+        return { value: label, label };
+      });
+
+    const unique = [];
+    const seen = new Set();
+    activityOptions.forEach(option => {
+      if(seen.has(option.value)) return;
+      seen.add(option.value);
+      unique.push(option);
+    });
+
+    els.eventName.innerHTML = [
+      '<option value="">Vælg aktivitet</option>',
+      ...unique.map(option => `<option value="${escapeAttr(option.value)}">${escapeHtml(option.label)}</option>`),
+      '<option value="Andet">Andet / ikke på listen</option>'
+    ].join('');
+
+    if(current && [...els.eventName.options].some(option => option.value === current)){
+      els.eventName.value = current;
+    }
+  }
+
+  function shortActivityDate(value){
+    const date = new Date(String(value) + 'T12:00:00');
+    if(Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+  }
+
+  function openUpload(){
+    init({ load: false });
+    els.uploadStatus.textContent = isConfigured() ? '' : 'Upload er ikke koblet til Google Drive endnu.';
+    els.submitBtn.disabled = !isConfigured();
+    els.uploadModal.showModal();
+  }
+
+  async function loadGallery(force = false){
+    if(!state.initialized) init({ load: false });
+    if(!isConfigured()){
+      state.loaded = true;
+      state.images = [];
+      els.syncStatus.textContent = 'Galleriet mangler forbindelsen til Google Drive.';
+      render();
+      return;
+    }
+    if(state.loading || (state.loaded && !force)) return;
+
+    state.loading = true;
+    els.syncStatus.textContent = 'Henter billeder…';
+    render();
+
+    try{
+      const url = new URL(config.appsScriptUrl);
+      url.searchParams.set('action', 'listGallery');
+      url.searchParams.set('_', Date.now());
+      const response = await fetch(url.toString(), { cache: 'no-store' });
+      if(!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      if(data.ok === false) throw new Error(data.error || 'Ukendt fejl');
+      state.images = Array.isArray(data.images) ? data.images : [];
+      state.loaded = true;
+      const folderCount = new Set(state.images.map(image => image.event || 'Andet')).size;
+      els.syncStatus.textContent = state.images.length
+        ? `${state.images.length} ${state.images.length === 1 ? 'billede' : 'billeder'} fordelt på ${folderCount} ${folderCount === 1 ? 'aktivitet' : 'aktiviteter'}.`
+        : 'Der er endnu ingen godkendte billeder.';
+    }catch(error){
+      console.error('Kunne ikke hente galleri', error);
+      state.images = [];
+      els.syncStatus.textContent = 'Kunne ikke hente galleriet.';
+    }finally{
+      state.loading = false;
+      render();
+    }
+  }
+
+  function render(){
+    if(!els.grid) return;
+    if(state.loading){
+      els.grid.className = 'gallery-grid';
+      els.grid.innerHTML = '<div class="gallery-loading"><div class="loading-spinner" aria-hidden="true"></div><span>Henter galleri…</span></div>';
+      return;
+    }
+    if(!state.images.length){
+      els.grid.className = 'gallery-grid';
+      els.grid.innerHTML = '<div class="empty gallery-empty">Ingen billeder at vise endnu.</div>';
+      return;
+    }
+
+    const folders = groupByActivity(state.images);
+
+    if(!state.activeFolder || !folders.has(state.activeFolder)){
+      state.activeFolder = '';
+      els.grid.className = 'gallery-grid gallery-folder-grid';
+      els.grid.innerHTML = [...folders.entries()].map(([name, images]) => {
+        const cover = images[0] || {};
+        const latest = formatDate(cover.date);
+        return `
+          <button class="gallery-folder-card" type="button" data-gallery-folder="${escapeAttr(name)}" aria-label="Åbn mappen ${escapeAttr(name)}">
+            <div class="gallery-folder-cover">
+              <img src="${escapeAttr(cover.thumbnailUrl || cover.url || '')}" alt="" loading="lazy">
+              <span class="gallery-folder-icon" aria-hidden="true">▰</span>
+            </div>
+            <div class="gallery-folder-info">
+              <strong>${escapeHtml(name)}</strong>
+              <span>${images.length} ${images.length === 1 ? 'billede' : 'billeder'}${latest ? ` · ${escapeHtml(latest)}` : ''}</span>
+            </div>
+          </button>`;
+      }).join('');
+
+      els.grid.querySelectorAll('[data-gallery-folder]').forEach(button => {
+        button.addEventListener('click', () => {
+          state.activeFolder = button.dataset.galleryFolder || '';
+          render();
+          document.querySelector('.gallery-list-block')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+      return;
+    }
+
+    const folderImages = folders.get(state.activeFolder) || [];
+    els.grid.className = 'gallery-grid gallery-images-grid';
+    els.grid.innerHTML = `
+      <div class="gallery-folder-toolbar">
+        <button class="gallery-back-btn" type="button" data-gallery-back>‹ Alle aktiviteter</button>
+        <div>
+          <h3>${escapeHtml(state.activeFolder)}</h3>
+          <p>${folderImages.length} ${folderImages.length === 1 ? 'billede' : 'billeder'}</p>
+        </div>
+      </div>
+      ${folderImages.map(image => {
+        const imageIndex = state.images.indexOf(image);
+        const title = image.caption || image.event || 'Concordia';
+        const meta = [image.uploader ? `Foto: ${image.uploader}` : '', formatDate(image.date)].filter(Boolean).join(' · ');
+        return `
+          <button class="gallery-card" type="button" data-gallery-index="${imageIndex}" aria-label="Åbn ${escapeAttr(title)}">
+            <img src="${escapeAttr(image.thumbnailUrl || image.url || '')}" alt="${escapeAttr(title)}" loading="lazy">
+            ${meta ? `<span>${escapeHtml(meta)}</span>` : ''}
+          </button>`;
+      }).join('')}`;
+
+    els.grid.querySelector('[data-gallery-back]')?.addEventListener('click', () => {
+      state.activeFolder = '';
+      render();
+    });
+    els.grid.querySelectorAll('[data-gallery-index]').forEach(button => {
+      button.addEventListener('click', () => openLargeImage(Number(button.dataset.galleryIndex)));
+    });
+  }
+
+  function groupByActivity(images){
+    const groups = new Map();
+    images.forEach(image => {
+      const name = String(image.event || 'Andet').trim() || 'Andet';
+      if(!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(image);
+    });
+    return new Map([...groups.entries()].sort((a, b) => {
+      const aDate = String(a[1][0]?.date || '');
+      const bDate = String(b[1][0]?.date || '');
+      return bDate.localeCompare(aDate) || a[0].localeCompare(b[0], 'da');
+    }));
+  }
+
+  function openLargeImage(index){
+    const image = state.images[index];
+    if(!image || !els.imageModal) return;
+    const title = image.event || image.caption || 'Billede fra Concordia';
+    const details = [image.event, image.uploader ? `Foto: ${image.uploader}` : '', formatDate(image.date)].filter(Boolean).join(' · ');
+    els.largeImage.src = image.url || image.thumbnailUrl || '';
+    els.largeImage.alt = title;
+    els.largeCaption.textContent = details || title;
+    els.imageModal.showModal();
+  }
+
+  function closeLargeImage(){
+    if(!els.imageModal) return;
+    els.imageModal.close();
+    els.largeImage.removeAttribute('src');
+  }
+
+  function updateSelectedFiles(){
+    const files = [...(els.fileInput.files || [])];
+    if(!files.length){
+      els.selectedFiles.textContent = 'Ingen billeder valgt.';
+      return;
+    }
+    const totalMb = files.reduce((sum, file) => sum + file.size, 0) / 1024 / 1024;
+    els.selectedFiles.textContent = `${files.length} ${files.length === 1 ? 'billede valgt' : 'billeder valgt'} · ${totalMb.toFixed(1).replace('.', ',')} MB før komprimering`;
+  }
+
+  async function uploadImages(event){
+    event.preventDefault();
+    if(!isConfigured()){
+      els.uploadStatus.textContent = 'Upload er ikke koblet til Google Drive endnu.';
+      return;
+    }
+
+    const files = [...(els.fileInput.files || [])];
+    const uploader = els.uploaderName.value.trim();
+    const eventName = els.eventName.value.trim();
+
+    if(!uploader){
+      els.uploadStatus.textContent = 'Skriv dit navn.';
+      els.uploaderName.focus();
+      return;
+    }
+    if(!eventName){
+      els.uploadStatus.textContent = 'Vælg hvilken aktivitet billederne hører til.';
+      els.eventName.focus();
+      return;
+    }
+    if(!files.length){
+      els.uploadStatus.textContent = 'Vælg mindst ét billede.';
+      return;
+    }
+    if(files.some(file => !String(file.type || '').startsWith('image/'))){
+      els.uploadStatus.textContent = 'Der må kun vælges billedfiler.';
+      return;
+    }
+
+    try{ localStorage.setItem('concordia_gallery_uploader', uploader); }catch{}
+
+    const batchId = `gallery-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    setUploading(true);
+    setProgress(0);
+
+    try{
+      for(let i = 0; i < files.length; i++){
+        els.uploadStatus.textContent = `Klargør billede ${i + 1} af ${files.length}…`;
+        const prepared = await prepareImage(files[i]);
+        els.uploadStatus.textContent = `Uploader billede ${i + 1} af ${files.length}…`;
+        await postImage({
+          batchId,
+          index: i + 1,
+          total: files.length,
+          uploader,
+          event: eventName,
+          filename: prepared.filename,
+          mimeType: prepared.mimeType,
+          data: prepared.base64
+        });
+        setProgress(((i + 1) / files.length) * 90);
+      }
+
+      els.uploadStatus.textContent = 'Kontrollerer upload…';
+      const confirmed = await waitForConfirmation(batchId, files.length);
+      setProgress(100);
+      els.uploadStatus.textContent = confirmed
+        ? '✓ Billederne er sendt og afventer godkendelse.'
+        : 'Billederne er sendt. Google bekræftede ikke svaret, så kontrollér indbakken i Drive.';
+
+      els.fileInput.value = '';
+      updateSelectedFiles();
+      setTimeout(() => {
+        if(els.uploadModal.open) els.uploadModal.close();
+        setProgress(0);
+      }, 1800);
+    }catch(error){
+      console.error('Uploadfejl', error);
+      els.uploadStatus.textContent = readableUploadError(error);
+    }finally{
+      setUploading(false);
+    }
+  }
+
+  async function prepareImage(file){
+    const bitmap = await loadBitmap(file);
+    const maxDimension = Math.max(800, Number(config.maxImageDimension) || 1800);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    if(typeof bitmap.close === 'function') bitmap.close();
+
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(value => value ? resolve(value) : reject(new Error('Billedet kunne ikke komprimeres.')), 'image/jpeg', Number(config.jpegQuality) || 0.82);
+    });
+    const base64 = await blobToBase64(blob);
+    const stem = String(file.name || 'billede').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9æøåÆØÅ _-]+/g, '').trim() || 'billede';
+    return {
+      filename: `${stem}.jpg`,
+      mimeType: 'image/jpeg',
+      base64
+    };
+  }
+
+  async function loadBitmap(file){
+    if('createImageBitmap' in window){
+      try{ return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+      catch{}
+    }
+    return await new Promise((resolve, reject) => {
+      const image = new Image();
+      const url = URL.createObjectURL(file);
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Billedformatet kunne ikke læses. Prøv at gemme billedet som JPG først.'));
+      };
+      image.src = url;
+    });
+  }
+
+  async function blobToBase64(blob){
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+      reader.onerror = () => reject(new Error('Billedfilen kunne ikke læses.'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function postImage(payload){
+    const body = new URLSearchParams({ action: 'upload' });
+    Object.entries(payload).forEach(([key, value]) => body.set(key, String(value ?? '')));
+    await fetch(config.appsScriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      body
+    });
+  }
+
+  async function waitForConfirmation(batchId, expected){
+    for(let attempt = 0; attempt < 8; attempt++){
+      await sleep(attempt === 0 ? 500 : 900);
+      try{
+        const url = new URL(config.appsScriptUrl);
+        url.searchParams.set('action', 'uploadStatus');
+        url.searchParams.set('batchId', batchId);
+        url.searchParams.set('_', Date.now());
+        const response = await fetch(url.toString(), { cache: 'no-store' });
+        const data = await response.json();
+        if(Number(data.count || 0) >= expected) return true;
+      }catch{}
+    }
+    return false;
+  }
+
+  function setUploading(active){
+    els.submitBtn.disabled = active;
+    els.fileInput.disabled = active;
+    els.uploaderName.disabled = active;
+    els.eventName.disabled = active;
+    els.progress.hidden = !active;
+    els.progress.setAttribute('aria-hidden', active ? 'false' : 'true');
+  }
+
+  function setProgress(percent){
+    if(els.progressBar) els.progressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  }
+
+  function readableUploadError(error){
+    const message = String(error?.message || '');
+    if(message.includes('Billedformatet')) return message;
+    if(message.includes('komprimeres')) return message;
+    return 'Uploaden mislykkedes. Kontrollér forbindelsen og prøv igen.';
+  }
+
+  function formatDate(value){
+    if(!value) return '';
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+  }
+
+  function escapeHtml(value){
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+  }
+
+  function escapeAttr(value){
+    return escapeHtml(value).replace(/`/g, '&#96;');
+  }
+
+  function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+
+  return { init, loadGallery };
 })();
 
 

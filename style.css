@@ -106,8 +106,8 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .wide-btn{width:100%;justify-content:center;text-align:center}
 .initiative-form{display:grid;gap:14px;margin:10px 0 4px;clear:both}
 .initiative-form label{display:grid;gap:6px;font-weight:850;color:#39271d}
-.initiative-form input,.initiative-form textarea{width:100%;border:1px solid rgba(159,120,59,.28);border-radius:15px;padding:12px 13px;background:rgba(255,255,255,.78);color:var(--ink);outline:none;font:inherit}
-.initiative-form input:focus,.initiative-form textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(214,162,61,.18)}
+.initiative-form input,.initiative-form textarea,.initiative-form select{width:100%;border:1px solid rgba(159,120,59,.28);border-radius:15px;padding:12px 13px;background:rgba(255,255,255,.78);color:var(--ink);outline:none;font:inherit}
+.initiative-form input:focus,.initiative-form textarea:focus,.initiative-form select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(214,162,61,.18)}
 .form-help{color:#4d4138;line-height:1.45;margin:4px 0 12px}
 
 
@@ -605,3 +605,68 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .signup-note-label{display:grid;gap:6px;margin:14px 20px 0;font-weight:850;color:#39271d}
 #signupGuestName,#signupNoteInput{font:inherit}
 @media (max-width:520px){.signup-member-row{grid-template-columns:1fr}.signup-stats-grid{grid-template-columns:repeat(3,1fr)}.signup-stat-card{padding:14px 8px}.signup-stat-card span{font-size:24px}.signup-event-card{grid-template-columns:52px 1fr;gap:12px}.signup-status-pill{grid-column:2;justify-self:start}.signup-choice-row{grid-template-columns:1fr}}
+
+
+/* V32 - galleri og privat billed-upload */
+.bottom-nav{padding-left:8px;padding-right:8px}
+.nav-btn{min-width:0;flex:1;padding-left:2px;padding-right:2px}
+.nav-btn small{font-size:11px}
+
+.gallery-intro-card{display:grid;gap:8px}
+.gallery-intro-card p{margin:0}
+.gallery-title-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.gallery-title-row .section-title{margin:0}
+.gallery-upload-btn{white-space:nowrap;padding:10px 13px}
+.gallery-sync-status{color:var(--muted);font-size:14px!important;font-weight:750}
+.gallery-list-block{margin-top:16px}
+.gallery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.gallery-card{position:relative;display:block;width:100%;aspect-ratio:1/1;border:0;padding:0;border-radius:20px;overflow:hidden;background:#eadcc4;box-shadow:0 9px 22px rgba(70,41,14,.12)}
+.gallery-card img{width:100%;height:100%;display:block;object-fit:cover;transition:transform .2s ease}
+.gallery-card:active img{transform:scale(.985)}
+.gallery-card span{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 9px;background:linear-gradient(transparent,rgba(20,9,5,.76));color:white;text-align:left;font-size:12px;font-weight:800;line-height:1.25}
+.gallery-empty{grid-column:1/-1}
+.gallery-loading{grid-column:1/-1;display:grid;place-items:center;gap:10px;padding:28px;color:var(--muted);font-weight:750}
+.gallery-loading .loading-spinner{width:30px;height:30px}
+
+.optional-label{font-weight:650;color:var(--muted);font-size:13px}
+.gallery-file-label input[type=file]{padding:10px;background:rgba(255,255,255,.9)}
+.gallery-selected-files{padding:12px 13px;border-radius:15px;background:rgba(245,223,173,.55);color:#4d3a22;font-size:14px;font-weight:750;line-height:1.35}
+.gallery-upload-note{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
+.gallery-progress{height:8px;overflow:hidden;border-radius:999px;background:rgba(120,16,29,.13)}
+.gallery-progress span{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#8f1425,#d6a23d);transition:width .2s ease}
+
+.gallery-image-dialog{border:0;padding:0;background:transparent;width:100%;max-width:760px;overflow:visible}
+.gallery-image-dialog::backdrop{background:rgba(10,5,3,.88);backdrop-filter:blur(8px)}
+.gallery-image-sheet{margin:0 14px;display:grid;gap:10px;place-items:center}
+.gallery-image-sheet img{display:block;max-width:100%;max-height:78svh;object-fit:contain;border-radius:22px;background:#111;box-shadow:0 18px 60px rgba(0,0,0,.42)}
+.gallery-image-sheet figcaption{color:white;text-align:center;font-weight:750;line-height:1.35;padding:0 10px}
+.gallery-image-close{position:fixed;top:max(14px,env(safe-area-inset-top));right:16px;z-index:2;width:46px;height:46px;border:0;border-radius:50%;background:rgba(255,255,255,.92);color:#3a220c;font-size:30px;line-height:1;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+
+@media (max-width:380px){
+  .nav-btn small{font-size:10px}
+  .nav-btn span{font-size:21px}
+  .gallery-title-row{align-items:stretch;flex-direction:column}
+  .gallery-upload-btn{width:100%;justify-content:center}
+}
+
+
+/* V33 - aktivitetsmapper i galleri */
+.gallery-folder-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.gallery-folder-card{display:grid;grid-template-rows:auto 1fr;width:100%;padding:0;border:0;border-radius:20px;overflow:hidden;background:rgba(255,255,255,.86);box-shadow:0 9px 22px rgba(70,41,14,.12);text-align:left;color:var(--ink)}
+.gallery-folder-cover{position:relative;aspect-ratio:4/3;overflow:hidden;background:#eadcc4}
+.gallery-folder-cover img{width:100%;height:100%;display:block;object-fit:cover}
+.gallery-folder-cover::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 45%,rgba(30,13,7,.48))}
+.gallery-folder-icon{position:absolute;z-index:1;left:10px;bottom:8px;color:#fff;font-size:25px;line-height:1;filter:drop-shadow(0 3px 5px rgba(0,0,0,.35));transform:rotate(-2deg)}
+.gallery-folder-info{display:grid;gap:4px;padding:11px 12px 13px}
+.gallery-folder-info strong{font-size:14px;line-height:1.25}
+.gallery-folder-info span{color:var(--muted);font-size:12px;font-weight:750;line-height:1.25}
+.gallery-folder-toolbar{grid-column:1/-1;display:flex;align-items:flex-start;gap:12px;padding:4px 0 8px}
+.gallery-folder-toolbar h3{margin:0 0 3px;font-size:18px;line-height:1.2}
+.gallery-folder-toolbar p{margin:0;color:var(--muted);font-size:13px;font-weight:750}
+.gallery-back-btn{flex:0 0 auto;border:0;border-radius:999px;padding:9px 12px;background:#f5e1b1;color:#4a3214;font:inherit;font-size:13px;font-weight:850}
+.gallery-images-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+@media (max-width:380px){
+  .gallery-folder-grid{grid-template-columns:1fr}
+  .gallery-folder-toolbar{flex-direction:column}
+}

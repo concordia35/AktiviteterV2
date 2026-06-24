@@ -1,4 +1,4 @@
-const CACHE_VERSION = '1.1.4';
+const CACHE_VERSION = '1.3.0';
 const CACHE_PREFIX = 'concordia-aktiviteter-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
@@ -7,6 +7,7 @@ const ASSETS = [
   './index.html',
   './style.css',
   './app.js',
+  './gallery-config.js',
   './events.json',
   './initiativer.json',
   './manifest.webmanifest',
@@ -37,7 +38,7 @@ self.addEventListener('message', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  if(url.hostname.includes('script.google.com') || url.hostname.includes('docs.google.com')) return;
+  if(url.origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request)
       .then(response => {

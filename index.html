@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Concordia" />
   <title>Det sker i Concordia</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.1.4" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.1.4" />
-  <link rel="stylesheet" href="style.css?v=1.1.4" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.3.0" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.3.0" />
+  <link rel="stylesheet" href="style.css?v=1.3.0" />
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
@@ -115,13 +115,29 @@
       </section>
     </main>
 
+
+    <main id="viewGallery" class="view">
+      <section class="page-card gallery-intro-card">
+        <div class="gallery-title-row">
+          <div class="section-title"><span></span><h2>Galleri</h2></div>
+          <button id="galleryUploadBtn" class="btn primary gallery-upload-btn" type="button">Upload billeder</button>
+        </div>
+        <p>Godkendte billeder samles i en mappe for hver aktivitet.</p>
+        <p id="gallerySyncStatus" class="gallery-sync-status" aria-live="polite">Henter billeder…</p>
+      </section>
+
+      <section class="list-block gallery-list-block">
+        <div id="galleryGrid" class="gallery-grid" aria-live="polite"></div>
+      </section>
+    </main>
+
     <main id="viewAbout" class="view">
       <section class="page-card">
         <div class="section-title"><span></span><h2>Om</h2></div>
         <p>Denne app er lavet for at give brødrene et samlet og hurtigt overblik over, hvad der sker i Concordia.</p>
-        <p>Her kan du se kommende aktiviteter, tilmelde dig kommende aftener og lægge arrangementer direkte i din kalender.</p>
+        <p>Her kan du se kommende aktiviteter, tilmelde dig kommende aftener, se billeder fra logen og lægge arrangementer direkte i din kalender.</p>
         <p>Formålet er enkelt: mindre roden rundt i gamle mails og opslag – mere overblik på mobilen.</p>
-        <p>Appen samler aktiviteter, tilmelding til kommende aftener og broderinitiativer ét sted.</p>
+        <p>Appen samler aktiviteter, tilmelding, broderinitiativer og Concordias interne billedgalleri ét sted.</p>
 
         <div class="about-qr-block" aria-label="QR-kode til siden">
           <div class="about-qr-text">
@@ -129,13 +145,13 @@
             <p>Scan koden for hurtigt at åbne siden på mobilen.</p>
           </div>
           <figure class="qr-card">
-            <img src="qr.png?v=1.1.4" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
+            <img src="qr.png?v=1.3.0" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
             <figcaption>QR-kode</figcaption>
             <div class="qr-fallback">Læg <strong>qr.png</strong> i samme mappe som <strong>index.html</strong>.</div>
           </figure>
         </div>
 
-        <p class="app-version">Version <span id="appVersion">1.1.4</span></p>
+        <p class="app-version">Version <span id="appVersion">1.3.0</span></p>
         <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
       </section>
     </main>
@@ -144,6 +160,7 @@
       <button class="nav-btn active" data-view="overview"><span>▦</span><small>Aktiviteter</small></button>
       <button class="nav-btn" data-view="loge"><span>✓</span><small>Tilmelding</small></button>
       <button class="nav-btn" data-view="initiatives"><span>🤝</span><small>Initiativer</small></button>
+      <button class="nav-btn" data-view="gallery"><span>▧</span><small>Galleri</small></button>
       <button class="nav-btn" data-view="about"><span>ⓘ</span><small>Om</small></button>
     </nav>
   </div>
@@ -213,7 +230,42 @@
     </div>
   </dialog>
 
-    <dialog id="signupModal" class="sheet-dialog">
+
+  <dialog id="galleryUploadModal" class="sheet-dialog">
+    <div class="sheet">
+      <button class="close" id="galleryUploadCloseBtn" type="button" aria-label="Luk">×</button>
+      <div class="sheet-scroll">
+        <div class="section-title"><span></span><h2>Upload billeder</h2></div>
+        <p class="form-help">Vælg billeder, der allerede ligger på din telefon eller computer. Appen åbner ikke kameraet.</p>
+        <form id="galleryUploadForm" class="initiative-form gallery-upload-form">
+          <label>Dit navn<input id="galleryUploaderName" type="text" autocomplete="name" placeholder="Skriv dit navn" required></label>
+          <label>Aktivitet
+            <select id="galleryEventName" required>
+              <option value="">Vælg aktivitet</option>
+            </select>
+          </label>
+          <label class="gallery-file-label">Billeder
+            <input id="galleryFileInput" type="file" accept="image/*" multiple required>
+          </label>
+          <div id="gallerySelectedFiles" class="gallery-selected-files">Ingen billeder valgt.</div>
+          <p class="gallery-upload-note">Billederne sendes privat til Concordias Google Drive og bliver ikke vist automatisk.</p>
+          <button id="galleryUploadSubmitBtn" class="btn primary wide-btn" type="submit">Upload billeder</button>
+          <div id="galleryUploadProgress" class="gallery-progress" hidden aria-hidden="true"><span></span></div>
+          <p id="galleryUploadStatus" class="form-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="galleryImageModal" class="gallery-image-dialog">
+    <button id="galleryImageCloseBtn" class="gallery-image-close" type="button" aria-label="Luk">×</button>
+    <figure class="gallery-image-sheet">
+      <img id="galleryLargeImage" src="" alt="">
+      <figcaption id="galleryLargeCaption"></figcaption>
+    </figure>
+  </dialog>
+
+  <dialog id="signupModal" class="sheet-dialog">
     <div class="sheet signup-sheet">
       <button id="signupCloseModalBtn" class="close" type="button" aria-label="Luk">×</button>
       <div class="sheet-scroll">
@@ -258,6 +310,7 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=1.1.4"></script>
+  <script src="gallery-config.js?v=1.3.0"></script>
+  <script src="app.js?v=1.3.0"></script>
 </body>
 </html>
