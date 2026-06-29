@@ -238,7 +238,7 @@ def make_payload(items: list[dict]) -> dict:
     return {
         "app_id": APP_ID,
         "target_channel": "push",
-        "included_segments": ["Subscribed Users"],
+        "included_segments": ["Alle abonnenter"],
         "name": name,
         "headings": {"en": heading},
         "contents": {"en": body},
@@ -269,6 +269,14 @@ def send(payload: dict) -> None:
         with urlopen(request, timeout=30) as response:
             body = response.read().decode("utf-8")
             print(f"OneSignal svarede {response.status}: {body}")
+            try:
+                result = json.loads(body)
+            except json.JSONDecodeError as error:
+                print("OneSignal returnerede et ugyldigt JSON-svar. State opdateres ikke.", file=sys.stderr)
+                raise SystemExit(1) from error
+            if result.get("errors") or not result.get("id"):
+                print("OneSignal accepterede ikke beskeden til nogen modtagere. State opdateres ikke.", file=sys.stderr)
+                raise SystemExit(1)
     except HTTPError as error:
         body = error.read().decode("utf-8", errors="replace")
         print(f"OneSignal-fejl {error.code}: {body}", file=sys.stderr)
