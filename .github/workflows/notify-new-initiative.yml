@@ -1,9 +1,17 @@
 name: Kontroller nye initiativer
 
 on:
+  # Faste minutter væk fra de mest belastede hel- og kvarterstider.
+  # En ændring af cron-linjen får samtidig GitHub til at registrere tidsplanen på ny.
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/notify-new-initiative.yml'
+      - '.github/scripts/notify_new_initiative.py'
 
 permissions:
   contents: write
