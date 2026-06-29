@@ -1,4 +1,4 @@
-const CACHE_VERSION = '1.4.3';
+const CACHE_VERSION = '1.4.4';
 const CACHE_PREFIX = 'concordia-aktiviteter-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
@@ -9,11 +9,9 @@ const ASSETS = [
   './app.js',
   './gallery-config.js',
   './events.json',
-  './initiativer.json',
   './manifest.webmanifest',
   './qr.png',
   './assets/chainlinks.jpg',
-  './assets/chainlinks.svg',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];

@@ -1,45 +1,28 @@
-Concordia samlet app
-Version 1.3.0
+Det sker i Concordia
+Version 1.4.4
 
-Nyt i version 1.3.0:
-- Ny Galleri-fane i bundmenuen.
-- Godkendte billeder hentes fra Google Drive via et separat Apps Script.
-- Upload-knap direkte i Galleri-fanen.
-- Brugerne kan kun vælge eksisterende billedfiler; appen aktiverer ikke kameraet.
-- Billeder komprimeres på enheden før upload.
-- Uploads gemmes privat i mappen "Concordia billeder/Indbakke".
-- Billeder vises først i appen, når Status i Google Sheet ændres til "Galleri".
+Indhold
+- Aktiviteter fra events.json
+- Tilmelding via Google Apps Script
+- Broderinitiativer via Google Apps Script
+- Galleri og privat billedupload via gallery-config.js
+- OneSignal-notifikationer og automatiske GitHub Actions
+- Installerbar PWA med automatisk versionsopdatering
 
-Opsætning:
-Se GALLERI-OPSÆTNING.txt og mappen google-apps-script-gallery.
+Vigtige filer
+- events.json: aktiviteter og plakater
+- app.js: appens funktioner
+- style.css: design
+- gallery-config.js: URL og indstillinger til galleri
+- manifest.webmanifest og sw.js: installation, cache og opdatering
+- .github/workflows: automatiske notifikationer
 
-Eksisterende funktioner er bevaret:
-- Aktiviteter
-- Tilmelding
-- Broderinitiativer
-- Om-side med QR-kode
+Oprydning i version 1.4.4
+- Fjernet dobbelt og overskrevet JavaScript til initiativer.
+- Fjernet gammel logeaften-visning, som var erstattet af Tilmelding.
+- Fjernet skjult gammel initiativformular og ubrugt Google Forms-kode.
+- Fjernet ubrugte fallback-filer, ikoner og tomme placeholder-filer.
+- Ensrettet versionsnumre i HTML, manifest, JavaScript og service worker.
 
-Concordia samlet app
-Version 1.1.3
-
-Indhold:
-- Aktiviteter
-- Tilmelding direkte integreret i appens design
-- Broderinitiativer
-- Om-side med QR-kode
-
-Bemærk:
-- Den gamle iframe/undermappe til TilmeldingV3 er fjernet.
-- Køkkenoverblik er ikke inkluderet.
-- Data til tilmelding hentes fortsat fra Google Sheet via Apps Script.
-
-
-Version 1.1.3: Rettet initiativ-klik og Jeg deltager-dialog, så tilmelding åbner stabilt i PWA/mobilbrowser.
-
-
-VERSION 1.3.0
-=============
-- Ingen kunstig grænse på antal billeder pr. upload.
-- Separat gallerimappe for hver aktivitet i appen og Google Drive.
-- Automatisk status-dropdown i Google Sheet.
-- Aktivitet vælges fra appens arrangementsoversigt ved upload.
+Ved næste ændring
+Hæv APP_VERSION i app.js og CACHE_VERSION i sw.js til samme nummer. Opdater også versionsparameteren i index.html og manifest.webmanifest.

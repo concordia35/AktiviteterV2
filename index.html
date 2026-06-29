@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Concordia" />
   <title>Det sker i Concordia</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.4.2" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.4.2" />
-  <link rel="stylesheet" href="style.css?v=1.4.2" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.4.4" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.4.4" />
+  <link rel="stylesheet" href="style.css?v=1.4.4" />
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -199,13 +199,13 @@
             <p>Scan koden for hurtigt at åbne siden på mobilen.</p>
           </div>
           <figure class="qr-card">
-            <img src="qr.png?v=1.4.2" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
+            <img src="qr.png?v=1.4.4" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
             <figcaption>QR-kode</figcaption>
             <div class="qr-fallback">Læg <strong>qr.png</strong> i samme mappe som <strong>index.html</strong>.</div>
           </figure>
         </div>
 
-        <p class="app-version">Version <span id="appVersion">1.4.2</span></p>
+        <p class="app-version">Version <span id="appVersion">1.4.4</span></p>
         <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
       </section>
     </main>
@@ -228,24 +228,6 @@
     </div>
   </dialog>
 
-  <dialog id="initiativeModal" class="sheet-dialog">
-    <div class="sheet">
-      <button class="close" data-close-initiative aria-label="Luk">×</button>
-      <div class="sheet-scroll">
-        <div class="section-title"><span></span><h2>Foreslå initiativ</h2></div>
-        <p class="form-help">Udfyld felterne. Når du trykker send, bliver forslaget sendt til Lars på mail. Aktiviteten kommer først på siden, når den er godkendt.</p>
-        <form id="initiativeForm" class="initiative-form">
-          <label>Titel<input id="initiativeTitle" type="text" placeholder="F.eks. Gåtur i Lystskoven" required></label>
-          <label>Dato<input id="initiativeDate" type="date" required></label>
-          <label>Tidspunkt<input id="initiativeTime" type="time"></label>
-          <label>Sted<input id="initiativePlace" type="text" placeholder="F.eks. p-pladsen ved Lystskoven"></label>
-          <label>Navn<input id="initiativeHost" type="text" placeholder="Dit navn" required></label>
-          <label>Beskrivelse<textarea id="initiativeText" rows="5" placeholder="Skriv kort hvad aktiviteten går ud på" required></textarea></label>
-          <button class="btn primary wide-btn" type="submit">Send forslag</button>
-        </form>
-      </div>
-    </div>
-  </dialog>
 
   <dialog id="initiativeSubmitModal" class="sheet-dialog">
     <div class="sheet">
@@ -374,7 +356,7 @@
     </div>
   </dialog>
 
-  <script src="gallery-config.js?v=1.4.2"></script>
-  <script src="app.js?v=1.4.2"></script>
+  <script src="gallery-config.js?v=1.4.4"></script>
+  <script src="app.js?v=1.4.4"></script>
 </body>
 </html>

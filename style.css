@@ -17,7 +17,6 @@ button,select,a{font:inherit}
 button{cursor:pointer}
 .app-shell{width:100%;max-width:480px;min-height:100svh;background:linear-gradient(180deg,#fff9ef 0%,#f4ead8 60%,#efe0c6 100%);position:relative;overflow:hidden;padding-bottom:96px;box-shadow:0 0 0 1px rgba(0,0,0,.04)}
 .app-header{text-align:center;padding:24px 22px 18px;border-bottom:1px solid rgba(140,91,30,.16);position:relative;background:radial-gradient(circle at 50% -20%,#fff 0,#fff8eb 45%,#f8ead0 100%)}
-.chainmark{font-size:36px;color:var(--gold);line-height:1;margin-bottom:2px;filter:drop-shadow(0 3px 4px rgba(110,67,18,.18))}
 h1{font-family:Georgia,serif;font-size:31px;line-height:1.05;margin:4px 0 6px;color:var(--red-dark);letter-spacing:-.5px}
 .app-header p{margin:0;color:#4b3f35;font-size:14px}
 .install-btn{margin-top:12px;border:0;border-radius:999px;background:var(--red);color:white;padding:10px 16px;font-weight:800;box-shadow:0 8px 20px rgba(120,16,29,.22)}
@@ -48,19 +47,20 @@ details{background:rgba(255,255,255,.45);border:1px solid rgba(159,120,59,.2);bo
 summary{font-weight:900;color:var(--red);cursor:pointer}
 .archive-list{margin-top:12px}
 .empty{background:rgba(255,255,255,.62);border:1px solid rgba(159,120,59,.2);border-radius:18px;padding:16px;color:var(--muted)}
-.bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;height:78px;padding:8px 18px calc(8px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#8e1425,#640a15);display:flex;justify-content:space-around;box-shadow:0 -12px 30px rgba(60,0,0,.2);z-index:10}
-.nav-btn{border:0;background:transparent;color:#f7e7c4;display:grid;place-items:center;gap:3px;min-width:78px;border-radius:16px;padding:5px}.nav-btn span{font-size:23px}.nav-btn small{font-size:12px}.nav-btn.active{background:rgba(255,255,255,.12);color:#fff}
-.sheet-dialog{border:0;padding:0;background:transparent;width:100%;max-width:480px;margin:auto}.sheet-dialog::backdrop{background:rgba(17,9,4,.45);backdrop-filter:blur(8px)}
-.sheet{background:linear-gradient(180deg,#fffaf0 0%,#f6ead6 100%);border-radius:30px 30px 0 0;max-height:92svh;overflow:auto;padding:8px 18px 24px;box-shadow:0 -20px 60px rgba(0,0,0,.25);position:relative}.close{position:sticky;top:0;float:right;z-index:2;border:0;background:#f0d8a1;border-radius:50%;width:44px;height:44px;font-size:30px;line-height:1;color:#3a220c}
-.detail-poster-wrap{background:#111;border-radius:24px;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.16);margin:8px 0 18px;width:100%}
-.detail-poster{width:100%;max-width:100%;height:auto;display:block;border-radius:24px;object-fit:contain;pointer-events:none}
+.bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;height:78px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#8e1425,#640a15);display:flex;justify-content:space-around;box-shadow:0 -12px 30px rgba(60,0,0,.2);z-index:10}
+.nav-btn{border:0;background:transparent;color:#f7e7c4;display:grid;place-items:center;gap:3px;min-width:0;flex:1;border-radius:16px;padding:5px 2px}.nav-btn span{font-size:23px}
+.nav-btn.active{background:rgba(255,255,255,.12);color:#fff}
+.sheet-dialog{border:0;border-radius:30px;padding:0;background:transparent;width:100%;max-width:480px;margin:auto;overflow:visible}.sheet-dialog::backdrop{background:rgba(17,9,4,.45);backdrop-filter:blur(8px)}
+.sheet{background:linear-gradient(180deg,#fffaf0 0%,#f6ead6 100%);border-radius:30px;max-height:88svh;overflow:hidden;padding:0;box-shadow:0 -20px 60px rgba(0,0,0,.25);position:relative;display:flex;flex-direction:column;margin:0 12px}.close{position:sticky;top:0;float:right;z-index:2;border:0;background:#f0d8a1;border-radius:50%;width:44px;height:44px;font-size:30px;line-height:1;color:#3a220c}
+.detail-poster-wrap{background:transparent;border-radius:24px;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.16);margin:8px 0 18px;width:100%}
+.detail-poster{width:100%!important;max-width:100%;height:auto!important;display:block!important;border-radius:24px!important;object-fit:contain!important;pointer-events:none;background:#fff8eb}
 .modal-title{font-family:Georgia,serif;font-size:32px;line-height:1.03;color:var(--red-dark);margin:8px 20px 4px}
 .modal-sub{font-weight:900;color:var(--red);margin:0 20px 14px}.info-grid{display:grid;gap:10px;margin:0 20px}.info-row{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid rgba(150,113,51,.2)}.description{line-height:1.48;margin:18px 20px;color:#36271f}.modal-actions{margin:0 20px 8px}.btn{border:0;text-decoration:none;border-radius:15px;padding:11px 14px;font-weight:850;display:inline-flex;align-items:center;gap:6px}.btn.primary{background:linear-gradient(180deg,#8f1425,#620a15);color:white;box-shadow:0 8px 18px rgba(120,16,29,.22)}
 .loge-detail-icon{width:74px;height:74px;border-radius:24px;background:#fff4dc;display:grid;place-items:center;font-size:42px;color:var(--red);margin:20px auto 12px;box-shadow:inset 0 0 0 1px rgba(213,158,49,.25)}
 @media (max-width:380px){h1{font-size:27px}.next-card{grid-template-columns:48px 1fr}.event-icon,.event-icon.large{width:48px;height:48px}.list-head{align-items:flex-start;flex-direction:column}.list-head select{width:100%}}
 
 
-/* V15 - finpudsning: stærkere næste aktivitet og bedre Om-side */
+/* Fremhævet næste aktivitet og Om-side */
 .next-block:first-child .next-card {
   padding: 22px 18px !important;
   border-radius: 30px !important;
@@ -101,7 +101,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
   background: rgba(120,16,29,.08);
 }
 
-/* V16 - Initiativer */
+/* Initiativer */
 .intro-card{display:grid;gap:10px}
 .wide-btn{width:100%;justify-content:center;text-align:center}
 .initiative-form{display:grid;gap:14px;margin:10px 0 4px;clear:both}
@@ -110,26 +110,6 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .initiative-form input:focus,.initiative-form textarea:focus,.initiative-form select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(214,162,61,.18)}
 .form-help{color:#4d4138;line-height:1.45;margin:4px 0 12px}
 
-
-/* V19 - Google Forms/Sheets integration */
-#initiativeModal {
-  display: none !important;
-}
-
-.sheet-status-note {
-  color: #75685c;
-  font-size: 14px;
-  margin-top: 8px;
-}
-
-
-/* V20 - deltagere på initiativer */
-.participant-count {
-  display: inline-block;
-  margin-top: 4px;
-  color: var(--red);
-  font-weight: 850;
-}
 
 .participants-box {
   margin: 18px 20px;
@@ -164,60 +144,18 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 }
 
 
-/* V21 - prefill + refresh deltagere */
+/* Knapper i dialoger */
 .modal-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.btn.soft.refresh-btn {
-  background: #f5dfad;
-  color: #3d2910;
-  border: 1px solid rgba(159,120,59,.22);
-}
-
-.btn.soft.refresh-btn:active {
-  transform: scale(.98);
-}
-
-
-/* V22 - finpudsning */
-.chainmark-img {
-  width: 88px !important;
-  height: auto !important;
-  display: block;
-  margin: 0 auto 6px;
-  filter: drop-shadow(0 4px 6px rgba(110,67,18,.18));
-}
-
-.sheet-dialog {
-  border-radius: 30px !important;
-}
-
-.sheet {
-  border-radius: 30px !important;
-  overflow: auto !important;
-  max-height: 88svh !important;
-  margin: 0 12px !important;
-  padding-bottom: 28px !important;
-}
-
+/* Modaler og detaljevisning */
 .sheet::after {
   content: "";
   display: block;
   height: 2px;
-}
-
-.detail-poster-wrap {
-  border-radius: 24px !important;
-  overflow: hidden !important;
-  background: transparent !important;
-}
-
-.detail-poster {
-  border-radius: 24px !important;
-  background: #fff8eb;
 }
 
 /* Gør de nye VM-billeder pæne i detaljevisningen */
@@ -227,38 +165,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
   object-fit: contain;
 }
 
-@media (max-width: 520px) {
-  .sheet {
-    margin: 0 8px !important;
-    max-height: 90svh !important;
-  }
-}
-
-
-/* V23 - brugerens egne plakater og kædeled */
-.chainmark-img {
-  width: 112px !important;
-  max-width: 34vw !important;
-  height: auto !important;
-  object-fit: contain !important;
-  display: block !important;
-  margin: 0 auto 8px !important;
-  mix-blend-mode: multiply;
-}
-
-.sheet-dialog {
-  border-radius: 30px !important;
-  overflow: visible !important;
-}
-
-.sheet {
-  border-radius: 30px !important;
-  overflow: auto !important;
-  max-height: 88svh !important;
-  margin: 0 12px !important;
-  padding-bottom: 30px !important;
-}
-
+/* Plakater og afrundede kort */
 .detail-poster-wrap,
 .detail-poster,
 .participants-box,
@@ -267,18 +174,6 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .page-card,
 .empty {
   border-radius: 24px !important;
-}
-
-.detail-poster-wrap {
-  overflow: hidden !important;
-  background: transparent !important;
-}
-
-.detail-poster {
-  display: block !important;
-  width: 100% !important;
-  height: auto !important;
-  object-fit: contain !important;
 }
 
 .participant-count {
@@ -301,12 +196,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 }
 
 
-/* V24 - tving rigtige kædeled i header */
-.app-header .chainmark,
-.app-header .chainmark:not(img) {
-  display: none !important;
-}
-
+/* Headerlogo */
 .app-header .chainmark-img {
   display: block !important;
   width: 96px !important;
@@ -318,13 +208,8 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
   mix-blend-mode: multiply;
 }
 
-/* V30 - in-app formularer via Apps Script */
-.form-status{min-height:20px;margin:2px 0 0;color:var(--red);font-weight:850;line-height:1.35}
-.btn[disabled],button[disabled]{opacity:.65;cursor:wait}
-#initiativeSubmitModal .sheet,#joinModal .sheet{border-radius:30px!important}
 
-
-/* V31 - loading screen og samlet Apps Script-flow */
+/* Loading-skærm */
 .loading-screen{
   position:fixed;
   inset:0;
@@ -385,23 +270,6 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 #initiativeSubmitModal .sheet,#joinModal .sheet{border-radius:30px!important}
 
 
-/* Scrollbar-fix for modaler:
-   Scroll ligger nu inde i .sheet-scroll, så de runde hjørner ikke bliver ødelagt. */
-.sheet-dialog {
-  overflow: visible !important;
-}
-
-.sheet {
-  border-radius: 30px !important;
-  overflow: hidden !important;
-  max-height: 88svh !important;
-  margin: 0 12px !important;
-  padding: 0 !important;
-  position: relative !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
 .sheet-scroll {
   max-height: 88svh;
   overflow-y: auto;
@@ -429,7 +297,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
   }
 }
 
-/* V103 - små rettelser til initiativer */
+/* Indlæsning af initiativer */
 .initiative-loading {
   display: flex;
   align-items: center;
@@ -451,38 +319,6 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 }
 
 
-.update-banner{
-  position: fixed;
-  left: 14px;
-  right: 14px;
-  bottom: calc(78px + env(safe-area-inset-bottom));
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: #78101d;
-  color: #fff8eb;
-  box-shadow: 0 16px 34px rgba(50, 16, 18, .25);
-  font-weight: 800;
-}
-
-.update-banner[hidden]{
-  display: none;
-}
-
-.update-banner button{
-  border: 0;
-  border-radius: 999px;
-  padding: 9px 13px;
-  background: #f1c96b;
-  color: #401017;
-  font-weight: 900;
-  cursor: pointer;
-}
-
 .app-version{
   margin-top: 16px;
   font-size: .86rem;
@@ -491,7 +327,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 }
 
 
-/* V24 - QR-kode på Om siden */
+/* QR-kode på Om-siden */
 .about-qr-block{
   margin: 20px 0 6px;
   padding: 15px;
@@ -564,7 +400,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 }
 
 
-/* V1.1.1 - Tilmelding integreret i samme design */
+/* Tilmelding */
 .signup-page-card{display:grid;gap:12px}
 .signup-intro{margin:0;color:#4d4138;line-height:1.45}
 .signup-member-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
@@ -590,7 +426,6 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .signup-event-card.locked{opacity:.84}
 .signup-calendar-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .signup-calendar-row .btn{padding:10px 12px;border-radius:14px}
-.btn.soft{background:#f5dfad;color:#3d2910;border:1px solid rgba(159,120,59,.22)}
 .signup-sheet .modal-title{margin:4px 20px 4px}.signup-modal-date{margin:8px 20px 6px}.signup-modal-description{margin-top:10px}
 .signup-choice-block{padding:16px;margin:14px 20px 0;border:1px solid rgba(159,120,59,.22);border-radius:20px;background:rgba(255,255,255,.62)}
 .signup-choice-block h3{margin:0 0 10px;font-size:17px}
@@ -607,9 +442,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 @media (max-width:520px){.signup-member-row{grid-template-columns:1fr}.signup-stats-grid{grid-template-columns:repeat(3,1fr)}.signup-stat-card{padding:14px 8px}.signup-stat-card span{font-size:24px}.signup-event-card{grid-template-columns:52px 1fr;gap:12px}.signup-status-pill{grid-column:2;justify-self:start}.signup-choice-row{grid-template-columns:1fr}}
 
 
-/* V32 - galleri og privat billed-upload */
-.bottom-nav{padding-left:8px;padding-right:8px}
-.nav-btn{min-width:0;flex:1;padding-left:2px;padding-right:2px}
+/* Galleri og privat billedupload */
 .nav-btn small{font-size:11px}
 
 .gallery-intro-card{display:grid;gap:8px}
@@ -628,7 +461,6 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .gallery-loading{grid-column:1/-1;display:grid;place-items:center;gap:10px;padding:28px;color:var(--muted);font-weight:750}
 .gallery-loading .loading-spinner{width:30px;height:30px}
 
-.optional-label{font-weight:650;color:var(--muted);font-size:13px}
 .gallery-file-label input[type=file]{padding:10px;background:rgba(255,255,255,.9)}
 .gallery-selected-files{padding:12px 13px;border-radius:15px;background:rgba(245,223,173,.55);color:#4d3a22;font-size:14px;font-weight:750;line-height:1.35}
 .gallery-upload-note{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
@@ -650,7 +482,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 }
 
 
-/* V33 - aktivitetsmapper i galleri */
+/* Aktivitetsmapper i galleri */
 .gallery-folder-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
 .gallery-folder-card{display:grid;grid-template-rows:auto 1fr;width:100%;padding:0;border:0;border-radius:20px;overflow:hidden;background:rgba(255,255,255,.86);box-shadow:0 9px 22px rgba(70,41,14,.12);text-align:left;color:var(--ink)}
 .gallery-folder-cover{position:relative;aspect-ratio:4/3;overflow:hidden;background:#eadcc4}
@@ -672,7 +504,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 }
 
 
-/* V1.4.1 - OneSignal samt popup ved nye aktiviteter og initiativer */
+/* OneSignal og popup ved nyt indhold */
 .notification-prompt-card{
   position:relative;
   margin:14px 18px 0;
