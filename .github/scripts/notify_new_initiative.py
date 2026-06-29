@@ -230,8 +230,8 @@ def make_payload(items: list[dict]) -> dict:
         url = f"{APP_URL}?initiative={quote(item['id'])}"
         name = f"Nyt initiativ: {item['title']}"[:128]
     else:
-        heading = "Nye broderinitiativer i Concordia"
-        body = f"Der er blevet godkendt {len(items)} nye initiativer."
+        heading = "Nye initiativer i Concordia"
+        body = f"{len(items)} nye initiativer er godkendt og klar i appen."
         url = f"{APP_URL}?initiative={quote(items[0]['id'])}"
         name = f"{len(items)} nye broderinitiativer"[:128]
 
