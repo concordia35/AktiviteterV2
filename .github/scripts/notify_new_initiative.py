@@ -17,7 +17,7 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 APP_ID = "6917c2bb-a55c-4899-81c3-6664760c12ed"
-APP_URL = "https://concordia35.github.io/Aktiviteter/"
+APP_URL = "https://concordia35.github.io/AktiviteterV2/"
 APPS_SCRIPT_URL = (
     "https://script.google.com/macros/s/"
     "AKfycbzivUCgohSlZRNIFGGsa9goS12lTksr7DMmShgC_bAlJODfmOlogCjj2X6eSeBsP8lY/exec"
