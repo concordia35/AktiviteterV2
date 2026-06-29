@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Concordia" />
   <title>Det sker i Concordia</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.4.1" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.4.1" />
-  <link rel="stylesheet" href="style.css?v=1.4.1" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.4.2" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.4.2" />
+  <link rel="stylesheet" href="style.css?v=1.4.2" />
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -59,12 +59,6 @@
       <div class="loading-spinner" aria-hidden="true"></div>
     </div>
   </div>
-
-  <div id="updateBanner" class="update-banner" hidden>
-    <span>Ny version er klar.</span>
-    <button id="updateNowBtn" type="button">Opdater nu</button>
-  </div>
-
 
   <div class="app-shell">
     <header class="app-header">
@@ -205,13 +199,13 @@
             <p>Scan koden for hurtigt at åbne siden på mobilen.</p>
           </div>
           <figure class="qr-card">
-            <img src="qr.png?v=1.4.1" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
+            <img src="qr.png?v=1.4.2" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
             <figcaption>QR-kode</figcaption>
             <div class="qr-fallback">Læg <strong>qr.png</strong> i samme mappe som <strong>index.html</strong>.</div>
           </figure>
         </div>
 
-        <p class="app-version">Version <span id="appVersion">1.4.1</span></p>
+        <p class="app-version">Version <span id="appVersion">1.4.2</span></p>
         <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
       </section>
     </main>
@@ -380,7 +374,7 @@
     </div>
   </dialog>
 
-  <script src="gallery-config.js?v=1.4.1"></script>
-  <script src="app.js?v=1.4.1"></script>
+  <script src="gallery-config.js?v=1.4.2"></script>
+  <script src="app.js?v=1.4.2"></script>
 </body>
 </html>
