@@ -1,0 +1,52 @@
+name: Påmind om tilmeldingsfrist
+
+on:
+  schedule:
+    # GitHub bruger UTC. De to tider dækker både dansk sommer- og vintertid.
+    # Python-scriptet sender omkring kl. 18 og accepterer kl. 19 som reserve ved GitHub-forsinkelse.
+    - cron: '7 16,17 * * 0'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Kør søndagens kontrol manuelt uden klokkeslætskontrol'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: concordia-signup-deadline-reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hent repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find onsdagens logeaften og send påmindelse
+        env:
+          ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
+        run: python3 .github/scripts/remind_signup_deadlines.py
+
+      - name: Gem hvilke påmindelser der er sendt
+        if: always()
+        shell: bash
+        run: |
+          if git diff --quiet -- .github/state/sent_signup_deadline_reminders.json; then
+            echo "Ingen ændring i state."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/state/sent_signup_deadline_reminders.json
+          git commit -m "Opdater tilmeldingspåmindelser [skip ci]"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
