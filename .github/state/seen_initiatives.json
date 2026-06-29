@@ -1,4 +1,7 @@
 {
-  "initialized": false,
-  "seen_ids": []
+  "initialized": true,
+  "seen_ids": [
+    "sheet-1-kaffe-(eksempel)-2026-07-01-00:00:00-13:00"
+  ],
+  "updated_at": "2026-06-29T11:24:35+02:00"
 }
