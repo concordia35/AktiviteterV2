@@ -1,4 +1,4 @@
-const APP_VERSION = '1.4.2';
+const APP_VERSION = '1.4.3';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -914,6 +914,10 @@ function getDeepLinkedInitiativeId(){
   return new URLSearchParams(window.location.search).get('initiative');
 }
 
+function getDeepLinkedSignupId(){
+  return new URLSearchParams(window.location.search).get('tilmelding');
+}
+
 function readSeenIds(key){
   try{
     const stored = localStorage.getItem(key);
@@ -955,7 +959,7 @@ function newContentSinceLastVisit(){
 }
 
 function showNewContentPopup(){
-  if(!newActivityModal || getDeepLinkedEventId() || getDeepLinkedInitiativeId()){
+  if(!newActivityModal || getDeepLinkedEventId() || getDeepLinkedInitiativeId() || getDeepLinkedSignupId()){
     rememberCurrentContent();
     return;
   }
@@ -1037,6 +1041,13 @@ if(newActivityOpenBtn) newActivityOpenBtn.addEventListener('click', () => {
 });
 
 function openDeepLinkedContent(){
+  const signupId = getDeepLinkedSignupId();
+  if(signupId){
+    activateView('loge');
+    SignupApp.openDeepLinkedEvent(signupId);
+    return true;
+  }
+
   const eventId = getDeepLinkedEventId();
   if(eventId && byId(eventId)){
     window.openEvent(eventId);
@@ -1215,7 +1226,8 @@ const SignupApp = (() => {
     rows: [],
     signups: {},
     currentEvent: null,
-    currentChoice: {}
+    currentChoice: {},
+    pendingDeepLinkId: ''
   };
 
   const dateFmt = new Intl.DateTimeFormat('da-DK', {
@@ -1327,6 +1339,7 @@ const SignupApp = (() => {
 
     renderMembers();
     render();
+    openPendingDeepLink();
   }
 
   function renderMembers() {
@@ -1344,6 +1357,7 @@ const SignupApp = (() => {
     state.signups = {};
     mergeCurrentUserRows();
     render();
+    openPendingDeepLink();
   }
 
   function mergeCurrentUserRows() {
@@ -1400,6 +1414,51 @@ const SignupApp = (() => {
     if (!member && CONFIG.GOOGLE_APPS_SCRIPT_URL) {
       els.syncStatus.textContent = 'Vælg dit navn for at starte.';
     }
+  }
+
+  function openDeepLinkedEvent(eventId) {
+    const decodedId = decodeURIComponent(String(eventId || '').trim());
+    if (!decodedId) return false;
+    state.pendingDeepLinkId = normalizeDate(decodedId);
+    activateView('loge');
+    return openPendingDeepLink();
+  }
+
+  function openPendingDeepLink() {
+    if (!state.pendingDeepLinkId || !state.events.length) return false;
+
+    const event = state.events.find(item =>
+      String(item.id) === String(state.pendingDeepLinkId) ||
+      String(item.date) === String(state.pendingDeepLinkId)
+    );
+
+    if (!event) {
+      state.pendingDeepLinkId = '';
+      return false;
+    }
+
+    activateView('loge');
+
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.delete('tilmelding');
+    window.history.replaceState({}, '', currentUrl);
+
+    window.setTimeout(() => {
+      const card = [...els.eventsList.querySelectorAll('.signup-event-card')]
+        .find(item => String(item.dataset.eventId) === String(event.id));
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card?.focus({ preventScroll: true });
+    }, 120);
+
+    if (storage.member) {
+      state.pendingDeepLinkId = '';
+      window.setTimeout(() => openModal(event.id), 180);
+    } else {
+      els.syncStatus.textContent = 'Vælg dit navn for at tilmelde dig denne aften.';
+      window.setTimeout(() => els.memberSelect?.focus(), 180);
+    }
+
+    return true;
   }
 
   function openModal(eventId) {
@@ -1888,7 +1947,7 @@ const SignupApp = (() => {
     ];
   }
 
-  return { init, refreshFromSheet, render };
+  return { init, refreshFromSheet, render, openDeepLinkedEvent };
 })();
 
 
@@ -2444,7 +2503,7 @@ const NotificationManager = (() => {
         notificationToggleBtn.classList.remove('primary');
         notificationToggleBtn.classList.add('soft');
       }
-      setHelp('Du får besked om helt nye aktiviteter og nye godkendte broderinitiativer. Små rettelser sender ikke en ny besked.');
+      setHelp('Du får besked om nye aktiviteter, godkendte broderinitiativer og sidste tilmeldingsfrist til logeaftener. Små rettelser sender ikke en ny besked.');
       return;
     }
 
