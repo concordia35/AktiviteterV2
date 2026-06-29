@@ -8,9 +8,40 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Concordia" />
   <title>Det sker i Concordia</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.3.0" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.3.0" />
-  <link rel="stylesheet" href="style.css?v=1.3.0" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.4.1" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.4.1" />
+  <link rel="stylesheet" href="style.css?v=1.4.1" />
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalReady = new Promise((resolve, reject) => {
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          const pathName = window.location.pathname;
+          const appBasePath = pathName.endsWith('/')
+            ? pathName
+            : pathName.replace(/[^/]*$/, '');
+          const workerPath = `${appBasePath.replace(/^\/+/, '')}push/onesignal/OneSignalSDKWorker.js`;
+          const workerScope = `${appBasePath}push/onesignal/`;
+
+          await OneSignal.init({
+            appId: '6917c2bb-a55c-4899-81c3-6664760c12ed',
+            serviceWorkerPath: workerPath,
+            serviceWorkerParam: { scope: workerScope },
+            autoResubscribe: true,
+            notificationClickHandlerMatch: 'origin',
+            notificationClickHandlerAction: 'navigate'
+          });
+
+          OneSignal.Notifications.setDefaultUrl(`${window.location.origin}${appBasePath}`);
+          resolve(OneSignal);
+        } catch (error) {
+          console.error('OneSignal kunne ikke starte', error);
+          reject(error);
+        }
+      });
+    });
+  </script>
 </head>
 <body>
   <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
@@ -35,6 +66,16 @@
       <p>Intern side for brødre – del ikke offentligt</p>
       <button id="installBtn" class="install-btn" hidden>Installer app</button>
     </header>
+
+    <section id="notificationPromptCard" class="notification-prompt-card" hidden aria-live="polite">
+      <div class="notification-prompt-icon" aria-hidden="true">🔔</div>
+      <div class="notification-prompt-copy">
+        <strong>Få besked om nye aktiviteter og initiativer</strong>
+        <span id="notificationPromptText">Slå notifikationer til, så du ikke overser nye aktiviteter eller initiativer.</span>
+      </div>
+      <button id="notificationPromptBtn" class="btn primary notification-prompt-btn" type="button">Slå til</button>
+      <button id="notificationPromptDismiss" class="notification-prompt-dismiss" type="button" aria-label="Vis ikke beskeden igen">×</button>
+    </section>
 
     <main id="viewOverview" class="view active-view">
       <section class="next-block">
@@ -139,19 +180,31 @@
         <p>Formålet er enkelt: mindre roden rundt i gamle mails og opslag – mere overblik på mobilen.</p>
         <p>Appen samler aktiviteter, tilmelding, broderinitiativer og Concordias interne billedgalleri ét sted.</p>
 
+        <div id="notificationSettings" class="notification-settings" aria-live="polite">
+          <div class="notification-settings-head">
+            <div class="notification-settings-icon" aria-hidden="true">🔔</div>
+            <div>
+              <h3>Notifikationer</h3>
+              <p id="notificationStatusText">Kontrollerer status…</p>
+            </div>
+          </div>
+          <button id="notificationToggleBtn" class="btn primary wide-btn" type="button" disabled>Vent et øjeblik…</button>
+          <p id="notificationHelpText" class="notification-help" hidden></p>
+        </div>
+
         <div class="about-qr-block" aria-label="QR-kode til siden">
           <div class="about-qr-text">
             <h3>QR-kode til siden</h3>
             <p>Scan koden for hurtigt at åbne siden på mobilen.</p>
           </div>
           <figure class="qr-card">
-            <img src="qr.png?v=1.3.0" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
+            <img src="qr.png?v=1.4.1" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
             <figcaption>QR-kode</figcaption>
             <div class="qr-fallback">Læg <strong>qr.png</strong> i samme mappe som <strong>index.html</strong>.</div>
           </figure>
         </div>
 
-        <p class="app-version">Version <span id="appVersion">1.3.0</span></p>
+        <p class="app-version">Version <span id="appVersion">1.4.1</span></p>
         <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
       </section>
     </main>
@@ -310,7 +363,17 @@
     </div>
   </dialog>
 
-  <script src="gallery-config.js?v=1.3.0"></script>
-  <script src="app.js?v=1.3.0"></script>
+  <dialog id="newActivityModal" class="notice-dialog">
+    <div class="notice-card">
+      <button id="newActivityCloseBtn" class="notice-close" type="button" aria-label="Luk">×</button>
+      <div class="notice-icon" aria-hidden="true">✨</div>
+      <h2 id="newActivityTitle">Ny aktivitet</h2>
+      <p id="newActivityText"></p>
+      <button id="newActivityOpenBtn" class="btn primary wide-btn" type="button">Se aktiviteten</button>
+    </div>
+  </dialog>
+
+  <script src="gallery-config.js?v=1.4.1"></script>
+  <script src="app.js?v=1.4.1"></script>
 </body>
 </html>

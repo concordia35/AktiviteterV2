@@ -1,4 +1,4 @@
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.1';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -32,6 +32,19 @@ const joinSubmitButton = $('#joinSubmitButton');
 const joinActivityTitle = $('#joinActivityTitle');
 const joinActivityId = $('#joinActivityId');
 const joinActivityName = $('#joinActivityName');
+
+const notificationPromptCard = $('#notificationPromptCard');
+const notificationPromptText = $('#notificationPromptText');
+const notificationPromptBtn = $('#notificationPromptBtn');
+const notificationPromptDismiss = $('#notificationPromptDismiss');
+const notificationStatusText = $('#notificationStatusText');
+const notificationToggleBtn = $('#notificationToggleBtn');
+const notificationHelpText = $('#notificationHelpText');
+const newActivityModal = $('#newActivityModal');
+const newActivityTitle = $('#newActivityTitle');
+const newActivityText = $('#newActivityText');
+const newActivityOpenBtn = $('#newActivityOpenBtn');
+const newActivityCloseBtn = $('#newActivityCloseBtn');
 
 let events = [];
 let logeaftener = [];
@@ -888,8 +901,160 @@ function renderAll(){
   renderInitiatives();
 }
 
+const SEEN_EVENTS_KEY = 'concordia-seen-event-ids-v1';
+const SEEN_INITIATIVES_KEY = 'concordia-seen-initiative-ids-v1';
+let pendingNewItems = [];
+let initiativesLoadedSuccessfully = false;
+
+function getDeepLinkedEventId(){
+  return new URLSearchParams(window.location.search).get('event');
+}
+
+function getDeepLinkedInitiativeId(){
+  return new URLSearchParams(window.location.search).get('initiative');
+}
+
+function readSeenIds(key){
+  try{
+    const stored = localStorage.getItem(key);
+    if(!stored) return null;
+    const parsed = JSON.parse(stored);
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  }catch{
+    return null;
+  }
+}
+
+function rememberCurrentContent(){
+  try{
+    localStorage.setItem(SEEN_EVENTS_KEY, JSON.stringify(events.map(event => event.id).filter(Boolean)));
+    if(initiativesLoadedSuccessfully){
+      localStorage.setItem(SEEN_INITIATIVES_KEY, JSON.stringify(initiativer.map(item => item.id).filter(Boolean)));
+    }
+  }catch{}
+}
+
+function newContentSinceLastVisit(){
+  const seenEvents = readSeenIds(SEEN_EVENTS_KEY);
+  const seenInitiatives = initiativesLoadedSuccessfully ? readSeenIds(SEEN_INITIATIVES_KEY) : new Set();
+
+  // Hver indholdstype initialiseres separat, så gamle opslag ikke udløser en mur af beskeder.
+  const newEvents = seenEvents === null
+    ? []
+    : events
+      .filter(event => event.id && !seenEvents.has(event.id))
+      .map(event => ({ type: 'event', id: event.id, item: event }));
+
+  const newInitiatives = !initiativesLoadedSuccessfully || seenInitiatives === null
+    ? []
+    : initiativer
+      .filter(item => item.id && !seenInitiatives.has(item.id))
+      .map(item => ({ type: 'initiative', id: item.id, item }));
+
+  return [...newEvents, ...newInitiatives];
+}
+
+function showNewContentPopup(){
+  if(!newActivityModal || getDeepLinkedEventId() || getDeepLinkedInitiativeId()){
+    rememberCurrentContent();
+    return;
+  }
+
+  const newItems = newContentSinceLastVisit();
+  if(!newItems.length){
+    rememberCurrentContent();
+    return;
+  }
+
+  pendingNewItems = newItems;
+  const newEvents = newItems.filter(entry => entry.type === 'event');
+  const newInitiatives = newItems.filter(entry => entry.type === 'initiative');
+  const first = newItems[0];
+
+  if(newItems.length === 1 && first.type === 'event'){
+    const item = first.item;
+    newActivityTitle.textContent = 'Ny aktivitet';
+    newActivityText.textContent = `${item.title}${item.subtitle ? ' – ' + item.subtitle : ''} er lagt i appen.`;
+    newActivityOpenBtn.textContent = 'Se aktiviteten';
+  }else if(newItems.length === 1){
+    const item = first.item;
+    newActivityTitle.textContent = 'Nyt broderinitiativ';
+    newActivityText.textContent = `${item.title} er blevet godkendt og lagt i appen.`;
+    newActivityOpenBtn.textContent = 'Se initiativet';
+  }else if(newEvents.length && newInitiatives.length){
+    newActivityTitle.textContent = `${newItems.length} nye opslag`;
+    newActivityText.textContent = `Der er ${newEvents.length} ${newEvents.length === 1 ? 'ny aktivitet' : 'nye aktiviteter'} og ${newInitiatives.length} ${newInitiatives.length === 1 ? 'nyt initiativ' : 'nye initiativer'} siden sidst.`;
+    newActivityOpenBtn.textContent = 'Se det første';
+  }else if(newInitiatives.length){
+    newActivityTitle.textContent = `${newInitiatives.length} nye initiativer`;
+    newActivityText.textContent = 'Der er lagt nye godkendte broderinitiativer i appen siden sidst.';
+    newActivityOpenBtn.textContent = 'Se initiativerne';
+  }else{
+    newActivityTitle.textContent = `${newEvents.length} nye aktiviteter`;
+    newActivityText.textContent = 'Der er lagt nye aktiviteter i appen siden sidst.';
+    newActivityOpenBtn.textContent = 'Se aktiviteterne';
+  }
+
+  newActivityModal.showModal();
+}
+
+function closeNewActivityPopup(){
+  rememberCurrentContent();
+  if(newActivityModal?.open) newActivityModal.close();
+}
+
+function activateView(viewName){
+  const button = document.querySelector(`.nav-btn[data-view="${viewName}"]`);
+  if(button) button.click();
+}
+
+if(newActivityCloseBtn) newActivityCloseBtn.addEventListener('click', closeNewActivityPopup);
+if(newActivityModal) newActivityModal.addEventListener('cancel', event => {
+  event.preventDefault();
+  closeNewActivityPopup();
+});
+if(newActivityOpenBtn) newActivityOpenBtn.addEventListener('click', () => {
+  const items = [...pendingNewItems];
+  closeNewActivityPopup();
+  if(!items.length) return;
+
+  const first = items[0];
+  if(items.length === 1){
+    if(first.type === 'initiative') window.openInitiative(first.id);
+    else window.openEvent(first.id);
+    return;
+  }
+
+  if(items.every(entry => entry.type === 'initiative')){
+    activateView('initiatives');
+  }else if(items.every(entry => entry.type === 'event')){
+    activateView('overview');
+  }else if(first.type === 'initiative'){
+    window.openInitiative(first.id);
+  }else{
+    window.openEvent(first.id);
+  }
+});
+
+function openDeepLinkedContent(){
+  const eventId = getDeepLinkedEventId();
+  if(eventId && byId(eventId)){
+    window.openEvent(eventId);
+    return true;
+  }
+
+  const initiativeId = getDeepLinkedInitiativeId();
+  if(initiativeId && initiativeById(initiativeId)){
+    activateView('initiatives');
+    window.openInitiative(initiativeId);
+    return true;
+  }
+
+  return false;
+}
+
 async function loadJson(path){
-  const res = await fetch(path + '?v=103', {cache:'no-store'});
+  const res = await fetch(path + '?v=141', {cache:'no-store'});
   if(!res.ok) throw new Error(path);
   return await res.json();
 }
@@ -906,27 +1071,33 @@ async function init(){
     if(nextEvent) nextEvent.innerHTML = `<div class="empty">Kunne ikke indlæse events.json.</div>`;
   }
 
-
   renderAll();
   SignupApp.init();
   GalleryApp.init({ load: false });
 
-  if(loadingScreen){
-    setTimeout(() => loadingScreen.classList.add('hidden'), 250);
-  }
-
   try{
     initiativer = await loadInitiativesFromSheet(true);
     participants = await loadParticipantsFromSheet(true);
+    initiativesLoadedSuccessfully = true;
     initiativesLoading = false;
     renderInitiatives();
   }catch(err){
     console.warn('Kunne ikke indlæse initiativdata:', err);
     initiativer = [];
     participants = [];
+    initiativesLoadedSuccessfully = false;
     initiativesLoading = false;
     renderInitiatives();
   }
+
+  if(loadingScreen){
+    setTimeout(() => loadingScreen.classList.add('hidden'), 250);
+  }
+
+  setTimeout(() => {
+    if(!openDeepLinkedContent()) showNewContentPopup();
+    else rememberCurrentContent();
+  }, 350);
 }
 
 if(filterSelect) filterSelect.addEventListener('change', e => {
@@ -2189,6 +2360,173 @@ const GalleryApp = (() => {
   return { init, loadGallery };
 })();
 
+
+const NotificationManager = (() => {
+  const DISMISSED_KEY = 'concordia-notification-prompt-dismissed-v1';
+  let OneSignalInstance = null;
+  let busy = false;
+
+  function isIos(){
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  function isStandalone(){
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function setPromptVisible(visible){
+    if(notificationPromptCard) notificationPromptCard.hidden = !visible;
+  }
+
+  function setHelp(text=''){
+    if(!notificationHelpText) return;
+    notificationHelpText.textContent = text;
+    notificationHelpText.hidden = !text;
+  }
+
+  async function getState(){
+    if(!OneSignalInstance) return { ready: false };
+    const supported = await Promise.resolve(OneSignalInstance.Notifications.isPushSupported());
+    const permission = Boolean(OneSignalInstance.Notifications.permission);
+    const optedIn = Boolean(OneSignalInstance.User.PushSubscription.optedIn);
+    const browserPermission = typeof Notification === 'undefined' ? 'default' : Notification.permission;
+    return { ready: true, supported, permission, optedIn, browserPermission };
+  }
+
+  async function refresh(){
+    const state = await getState();
+    if(!state.ready) return;
+
+    if(notificationToggleBtn) notificationToggleBtn.disabled = busy;
+
+    if(!state.supported){
+      setPromptVisible(false);
+      if(notificationStatusText) notificationStatusText.textContent = 'Denne browser understøtter ikke webnotifikationer.';
+      if(notificationToggleBtn){
+        notificationToggleBtn.textContent = 'Ikke understøttet';
+        notificationToggleBtn.disabled = true;
+      }
+      setHelp('Prøv appen i Chrome, Edge, Firefox eller Safari på en understøttet enhed.');
+      return;
+    }
+
+    if(isIos() && !isStandalone()){
+      setPromptVisible(localStorage.getItem(DISMISSED_KEY) !== '1');
+      if(notificationPromptText) notificationPromptText.textContent = 'På iPhone skal appen først føjes til hjemmeskærmen.';
+      if(notificationPromptBtn) notificationPromptBtn.textContent = 'Se hvordan';
+      if(notificationStatusText) notificationStatusText.textContent = 'På iPhone virker notifikationer kun fra den installerede webapp.';
+      if(notificationToggleBtn){
+        notificationToggleBtn.textContent = 'Sådan installerer du appen';
+        notificationToggleBtn.disabled = false;
+      }
+      setHelp('Tryk på Del i Safari, vælg “Føj til hjemmeskærm”, og åbn derefter appen fra ikonet.');
+      return;
+    }
+
+    if(state.browserPermission === 'denied'){
+      setPromptVisible(false);
+      if(notificationStatusText) notificationStatusText.textContent = 'Notifikationer er blokeret i browserens indstillinger.';
+      if(notificationToggleBtn){
+        notificationToggleBtn.textContent = 'Blokeret i browseren';
+        notificationToggleBtn.disabled = true;
+      }
+      setHelp('Åbn browserens indstillinger for siden og skift Notifikationer fra “Bloker” til “Tillad”.');
+      return;
+    }
+
+    if(state.optedIn){
+      setPromptVisible(false);
+      if(notificationStatusText) notificationStatusText.textContent = 'Notifikationer er slået til på denne enhed.';
+      if(notificationToggleBtn){
+        notificationToggleBtn.textContent = 'Slå notifikationer fra';
+        notificationToggleBtn.disabled = busy;
+        notificationToggleBtn.classList.remove('primary');
+        notificationToggleBtn.classList.add('soft');
+      }
+      setHelp('Du får besked om helt nye aktiviteter og nye godkendte broderinitiativer. Små rettelser sender ikke en ny besked.');
+      return;
+    }
+
+    const dismissed = localStorage.getItem(DISMISSED_KEY) === '1';
+    setPromptVisible(!dismissed);
+    if(notificationPromptText) notificationPromptText.textContent = 'Slå notifikationer til, så du ikke overser nye aktiviteter eller initiativer.';
+    if(notificationPromptBtn) notificationPromptBtn.textContent = state.permission ? 'Slå til igen' : 'Slå til';
+    if(notificationStatusText) notificationStatusText.textContent = state.permission
+      ? 'Tilladelsen er givet, men abonnementet er slået fra.'
+      : 'Notifikationer er ikke slået til på denne enhed.';
+    if(notificationToggleBtn){
+      notificationToggleBtn.textContent = state.permission ? 'Slå notifikationer til igen' : 'Slå notifikationer til';
+      notificationToggleBtn.disabled = busy;
+      notificationToggleBtn.classList.remove('soft');
+      notificationToggleBtn.classList.add('primary');
+    }
+    setHelp('Browseren spørger om tilladelse. Vælg “Tillad”, ellers kan appen ikke sende beskeder.');
+  }
+
+  async function toggle(){
+    if(!OneSignalInstance || busy) return;
+
+    if(isIos() && !isStandalone()){
+      setHelp('Åbn siden i Safari, tryk Del → Føj til hjemmeskærm, og åbn appen fra ikonet.');
+      const aboutButton = document.querySelector('[data-view="about"]');
+      aboutButton?.click();
+      document.querySelector('#notificationSettings')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    busy = true;
+    if(notificationToggleBtn) notificationToggleBtn.disabled = true;
+    if(notificationPromptBtn) notificationPromptBtn.disabled = true;
+
+    try{
+      const optedIn = Boolean(OneSignalInstance.User.PushSubscription.optedIn);
+      if(optedIn){
+        await OneSignalInstance.User.PushSubscription.optOut();
+      }else{
+        localStorage.removeItem(DISMISSED_KEY);
+        await OneSignalInstance.User.PushSubscription.optIn();
+      }
+    }catch(error){
+      console.error('Kunne ikke ændre notifikationsstatus', error);
+      setHelp('Det lykkedes ikke. Kontrollér browserens tilladelse til notifikationer og prøv igen.');
+    }finally{
+      busy = false;
+      if(notificationPromptBtn) notificationPromptBtn.disabled = false;
+      setTimeout(refresh, 250);
+    }
+  }
+
+  function init(){
+    const ready = window.OneSignalReady || Promise.reject(new Error('OneSignal er ikke initialiseret.'));
+    ready.then(async OneSignal => {
+      OneSignalInstance = OneSignal;
+      OneSignal.Notifications.addEventListener('permissionChange', refresh);
+      OneSignal.User.PushSubscription.addEventListener('change', refresh);
+      await refresh();
+    }).catch(error => {
+      console.error('OneSignal er ikke tilgængelig', error);
+      setPromptVisible(false);
+      if(notificationStatusText) notificationStatusText.textContent = 'Notifikationstjenesten kunne ikke startes.';
+      if(notificationToggleBtn){
+        notificationToggleBtn.textContent = 'Ikke tilgængelig';
+        notificationToggleBtn.disabled = true;
+      }
+      setHelp('Kontrollér internetforbindelsen og genindlæs appen.');
+    });
+
+    notificationToggleBtn?.addEventListener('click', toggle);
+    notificationPromptBtn?.addEventListener('click', toggle);
+    notificationPromptDismiss?.addEventListener('click', () => {
+      localStorage.setItem(DISMISSED_KEY, '1');
+      setPromptVisible(false);
+    });
+  }
+
+  return { init, refresh };
+})();
+
+NotificationManager.init();
 
 let deferredPrompt;
 const installBtn = $('#installBtn');
