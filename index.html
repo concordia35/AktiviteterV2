@@ -26,6 +26,12 @@
 
           await OneSignal.init({
             appId: '6917c2bb-a55c-4899-81c3-6664760c12ed',
+
+            welcomeNotification: {
+            title: 'Notifikationer er slået til',
+            message: 'Du får nu besked om nye aktiviteter og godkendte initiativer.',
+            url: `${window.location.origin}${appBasePath}`
+      },
             serviceWorkerPath: workerPath,
             serviceWorkerParam: { scope: workerScope },
             autoResubscribe: true,
