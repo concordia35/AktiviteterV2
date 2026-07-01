@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.2';
+const APP_VERSION = '1.6.3';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -436,8 +436,15 @@ function pickArray(data, keys){
   for(const key of keys){
     if(Array.isArray(data[key])) return data[key];
   }
-  for(const value of Object.values(data)){
-    if(Array.isArray(value)) return value;
+  // Vigtigt: fald IKKE tilbage til første tilfældige array.
+  // Det var fejlen der fik Broderinitiativer til at blive læst som Idébank.
+  return [];
+}
+
+function pickExactArray(data, keys){
+  if(!data || typeof data !== 'object' || Array.isArray(data)) return [];
+  for(const key of keys){
+    if(Array.isArray(data[key])) return data[key];
   }
   return [];
 }
@@ -583,7 +590,7 @@ function ideaInterestedCount(item){
 
 function isVisibleIdeaStatus(status){
   const s = String(status || '').trim().toLowerCase();
-  return ['ny','under behandling','afstemning','planlagt','godkendt'].includes(s);
+  return ['ny','under behandling','afstemning','planlagt'].includes(s);
 }
 
 function isPollIdeaStatus(status){
@@ -704,11 +711,13 @@ async function loadIdeasFromSheet(force=false){
   let data;
   try{
     data = await fetchAppsScriptAction('getIdeas', force);
+    const rows = arrayRowsToObjects(pickExactArray(data, ['ideas','ideer','idéer','Forslag','forslag']));
+    return normalizeIdeas(rows);
   }catch(err){
     data = await fetchAppsScriptAction('list', true);
+    const rows = arrayRowsToObjects(pickExactArray(data, ['ideas','ideer','idéer','Forslag','forslag']));
+    return normalizeIdeas(rows);
   }
-  const rows = arrayRowsToObjects(pickArray(data, ['ideas','ideer','idéer','Forslag','forslag','items','data','rows']));
-  return normalizeIdeas(rows);
 }
 
 async function loadIdeaVotesFromSheet(force=false){
@@ -937,7 +946,7 @@ function dynamicDataFromCache(){
   try{
     const initiativeRows = arrayRowsToObjects(pickArray(getInitiatives, ['initiatives','initiativer','Initiativer','items','data','rows']));
     const participantRows = arrayRowsToObjects(pickArray(getParticipants, ['participants','deltagere','Deltagere','items','data','rows']));
-    const ideaRows = arrayRowsToObjects(pickArray(getIdeas, ['ideas','ideer','idéer','Forslag','forslag','items','data','rows']));
+    const ideaRows = arrayRowsToObjects(pickExactArray(getIdeas, ['ideas','ideer','idéer','Forslag','forslag']));
     applyDynamicData({
       nextInitiatives: normalizeInitiatives(initiativeRows),
       nextParticipants: normalizeParticipants(participantRows),
