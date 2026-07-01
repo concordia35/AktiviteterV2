@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.3';
+const APP_VERSION = '1.6.4';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -449,6 +449,13 @@ function pickExactArray(data, keys){
   return [];
 }
 
+function pickIdeaArray(data){
+  // getIdeas kan returnere selve Idebank-rækkerne som array.
+  // Ved samlet list må der kun bruges eksplicitte Idebank-nøgler.
+  if(Array.isArray(data)) return data;
+  return pickExactArray(data, ['ideas','ideer','idéer','Idebank','Idébank','Forslag','forslag']);
+}
+
 async function fetchAppsScriptAction(action='list', force=false){
   const cacheKey = action || 'list';
   const localKey = `apps-script-${cacheKey}`;
@@ -711,11 +718,11 @@ async function loadIdeasFromSheet(force=false){
   let data;
   try{
     data = await fetchAppsScriptAction('getIdeas', force);
-    const rows = arrayRowsToObjects(pickExactArray(data, ['ideas','ideer','idéer','Forslag','forslag']));
+    const rows = arrayRowsToObjects(pickIdeaArray(data));
     return normalizeIdeas(rows);
   }catch(err){
     data = await fetchAppsScriptAction('list', true);
-    const rows = arrayRowsToObjects(pickExactArray(data, ['ideas','ideer','idéer','Forslag','forslag']));
+    const rows = arrayRowsToObjects(pickExactArray(data, ['ideas','ideer','idéer','Idebank','Idébank','Forslag','forslag']));
     return normalizeIdeas(rows);
   }
 }
@@ -939,14 +946,15 @@ function dynamicDataFromCache(){
   const list = cacheGet('apps-script-list');
   const getInitiatives = cacheGet('apps-script-getInitiatives') || list;
   const getParticipants = cacheGet('apps-script-getParticipants') || list;
-  const getIdeas = cacheGet('apps-script-getIdeas') || list;
+  const cachedIdeas = cacheGet('apps-script-getIdeas');
+  const getIdeas = cachedIdeas || list;
 
   if(!getInitiatives && !getParticipants && !getIdeas) return false;
 
   try{
     const initiativeRows = arrayRowsToObjects(pickArray(getInitiatives, ['initiatives','initiativer','Initiativer','items','data','rows']));
     const participantRows = arrayRowsToObjects(pickArray(getParticipants, ['participants','deltagere','Deltagere','items','data','rows']));
-    const ideaRows = arrayRowsToObjects(pickExactArray(getIdeas, ['ideas','ideer','idéer','Forslag','forslag']));
+    const ideaRows = arrayRowsToObjects(cachedIdeas ? pickIdeaArray(cachedIdeas) : pickExactArray(getIdeas, ['ideas','ideer','idéer','Idebank','Idébank','Forslag','forslag']));
     applyDynamicData({
       nextInitiatives: normalizeInitiatives(initiativeRows),
       nextParticipants: normalizeParticipants(participantRows),
