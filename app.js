@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.3';
+const APP_VERSION = '1.6.4';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1826,9 +1826,9 @@ const SignupApp = (() => {
     const googleUrl = buildGoogleCalendarUrl(event);
     const icsUrl = buildIcsDataUrl(event);
     return `
-      <div class="signup-calendar-row" onclick="event.stopPropagation()">
-        <a class="btn soft" href="${esc(googleUrl)}" target="_blank" rel="noopener">Tilføj Google Kalender</a>
-        <a class="btn soft" href="${esc(icsUrl)}" download="${esc(event.id || 'arrangement')}.ics">Apple/Outlook</a>
+      <div class="signup-calendar-row" onclick="event.stopPropagation()" aria-label="Føj til kalender">
+        <a class="btn soft signup-calendar-btn" href="${esc(googleUrl)}" target="_blank" rel="noopener" aria-label="Føj til Google Kalender"><span aria-hidden="true">📅</span><span>Google</span></a>
+        <a class="btn soft signup-calendar-btn" href="${esc(icsUrl)}" download="${esc(event.id || 'arrangement')}.ics" aria-label="Føj til Apple Kalender eller Outlook"><span aria-hidden="true">📅</span><span>Apple / Outlook</span></a>
       </div>
     `;
   }

@@ -424,8 +424,10 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .signup-status-pill{justify-self:end;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900;white-space:nowrap;background:#f3eadc;color:#6d5c4e}
 .signup-status-pill.status-yes{background:#e6f2ea;color:#206343}.signup-status-pill.status-meal-no{background:#fff0c7;color:#8b5a00}.signup-status-pill.status-no{background:#f7dfe2;color:#7a1322}
 .signup-event-card.locked{opacity:.84}
-.signup-calendar-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
-.signup-calendar-row .btn{padding:10px 12px;border-radius:14px}
+.signup-calendar-row{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;margin:10px 0 0}
+.signup-calendar-row .signup-calendar-btn{min-height:34px;padding:7px 10px;border-radius:999px;font-size:12px;line-height:1.1;font-weight:850;justify-content:center;white-space:nowrap;background:rgba(245,223,173,.58);border-color:rgba(159,120,59,.20)}
+.signup-calendar-row .signup-calendar-btn span[aria-hidden="true"]{font-size:13px;line-height:1}
+.signup-calendar-row .signup-calendar-btn:hover{background:rgba(245,223,173,.82)}
 .signup-sheet .modal-title{margin:4px 20px 4px}.signup-modal-date{margin:8px 20px 6px}.signup-modal-description{margin-top:10px}
 .signup-choice-block{padding:16px;margin:14px 20px 0;border:1px solid rgba(159,120,59,.22);border-radius:20px;background:rgba(255,255,255,.62)}
 .signup-choice-block h3{margin:0 0 10px;font-size:17px}
@@ -440,6 +442,7 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .signup-note-label{display:grid;gap:6px;margin:14px 20px 0;font-weight:850;color:#39271d}
 #signupGuestName,#signupNoteInput{font:inherit}
 @media (max-width:520px){.signup-member-row{grid-template-columns:1fr}.signup-stats-grid{grid-template-columns:repeat(3,1fr)}.signup-stat-card{padding:14px 8px}.signup-stat-card span{font-size:24px}.signup-event-card{grid-template-columns:52px 1fr;gap:12px}.signup-status-pill{grid-column:2;justify-self:start}.signup-choice-row{grid-template-columns:1fr}}
+@media (max-width:360px){.signup-calendar-row{flex-wrap:wrap}.signup-calendar-row .signup-calendar-btn{font-size:11px;padding:7px 9px}}
 
 
 /* Galleri og privat billedupload */
