@@ -1,28 +1,25 @@
-Det sker i Concordia
-Version 1.4.4
+Aktiviteter V2 - Idébank V2.1
+=============================
 
-Indhold
-- Aktiviteter fra events.json
-- Tilmelding via Google Apps Script
-- Broderinitiativer via Google Apps Script
-- Galleri og privat billedupload via gallery-config.js
-- OneSignal-notifikationer og automatiske GitHub Actions
-- Installerbar PWA med automatisk versionsopdatering
+Denne version gør Idébanken mere enkel.
 
-Vigtige filer
-- events.json: aktiviteter og plakater
-- app.js: appens funktioner
-- style.css: design
-- gallery-config.js: URL og indstillinger til galleri
-- manifest.webmanifest og sw.js: installation, cache og opdatering
-- .github/workflows: automatiske notifikationer
+Nyt:
+- Version 1.6.1
+- Idébank ligger under Broderinitiativer
+- Kun én ny Google Sheets-fane: Idebank
+- Ingen ekstra Interesse-fane
+- Interesserede gemmes direkte i Idebank-arket
+- Status styrer visningen i appen
+- Gennemført og Afvist skjules i appen
 
-Oprydning i version 1.4.4
-- Fjernet dobbelt og overskrevet JavaScript til initiativer.
-- Fjernet gammel logeaften-visning, som var erstattet af Tilmelding.
-- Fjernet skjult gammel initiativformular og ubrugt Google Forms-kode.
-- Fjernet ubrugte fallback-filer, ikoner og tomme placeholder-filer.
-- Ensrettet versionsnumre i HTML, manifest, JavaScript og service worker.
+Vigtigste filer:
+- index.html
+- app.js
+- style.css
+- sw.js
+- manifest.webmanifest
+- GOOGLE_SHEETS_GUIDE_IDEBANK_V21.txt
+- GOOGLE_SHEETS_APPS_SCRIPT_IDEBANK_V21.txt
 
-Ved næste ændring
-Hæv APP_VERSION i app.js og CACHE_VERSION i sw.js til samme nummer. Opdater også versionsparameteren i index.html og manifest.webmanifest.
+Start med guiden:
+GOOGLE_SHEETS_GUIDE_IDEBANK_V21.txt

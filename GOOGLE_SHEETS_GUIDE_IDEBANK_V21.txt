@@ -1,0 +1,214 @@
+GOOGLE SHEETS GUIDE - IDÉBANK V2.1
+=================================
+
+Denne version er den simple udgave.
+
+Du skal kun bruge én ny fane i Google Sheets:
+
+  Idebank
+
+Ingen ekstra Interesse-fane.
+Ingen knapper i Sheets.
+Ingen kopiering mellem ark.
+Ingen pis.
+
+Appen gør dette:
+
+  Status = Ny
+  -> vises under "Idéer under udvikling"
+
+  Status = Under behandling
+  -> vises under "Idéer under udvikling"
+
+  Status = Afstemning
+  -> vises under "Interesseafstemninger"
+  -> brødrene kan trykke "Vis interesse"
+
+  Status = Planlagt
+  -> vises under "Idéer under udvikling"
+  -> hvis dato er udfyldt, vises den også som konkret initiativ
+
+  Status = Gennemført
+  -> vises ikke
+
+  Status = Afvist
+  -> vises ikke
+
+
+TRIN 1 - OPRET FANEN
+--------------------
+
+Åbn det Google Sheet, som aktivitetsappen bruger.
+
+Opret en ny fane nederst og kald den præcist:
+
+  Idebank
+
+Brug ikke accent i navnet. Skriv Idebank.
+
+
+TRIN 2 - INDSÆT KOLONNER
+------------------------
+
+Indsæt disse kolonner i række 1:
+
+ID
+Indsendt
+Navn
+Titel
+Beskrivelse
+Kategori
+Deltagerestimat
+Vil hjælpe
+Status
+Interesserede
+Interesserede navne
+Statusnote
+Dato for arrangement
+Tidspunkt
+Sted
+Kontaktperson
+
+Du kan bare kopiere hele linjen herunder og sætte den ind i celle A1:
+
+ID	Indsendt	Navn	Titel	Beskrivelse	Kategori	Deltagerestimat	Vil hjælpe	Status	Interesserede	Interesserede navne	Statusnote	Dato for arrangement	Tidspunkt	Sted	Kontaktperson
+
+
+TRIN 3 - STATUSFELTET
+---------------------
+
+I kolonnen Status bruger du kun disse værdier:
+
+Ny
+Under behandling
+Afstemning
+Planlagt
+Gennemført
+Afvist
+
+Du behøver ikke lave dropdown manuelt, hvis du bruger Apps Script-koden. Den kan oprette valgmulighederne for dig.
+
+
+TRIN 4 - APPS SCRIPT
+--------------------
+
+Åbn Google Sheet.
+
+Vælg:
+
+  Udvidelser -> Apps Script
+
+Åbn filen:
+
+  GOOGLE_SHEETS_APPS_SCRIPT_IDEBANK_V21.txt
+
+Kopiér kun koden mellem:
+
+  KODE START
+
+og
+
+  KODE SLUT
+
+I Apps Script:
+
+1. Åbn Code.gs
+2. Marker alt med Ctrl+A
+3. Slet det
+4. Indsæt den nye kode
+5. Tryk Gem
+
+
+TRIN 5 - KØR OPSÆTNING
+----------------------
+
+I Apps Script vælger du funktionen:
+
+  setupActivitySheets
+
+Tryk Kør.
+
+Første gang skal du godkende adgang.
+
+Når den er kørt, har scriptet kontrolleret at fanerne findes og at kolonnerne er rigtige.
+
+
+TRIN 6 - DEPLOY SOM WEB APP
+---------------------------
+
+I Apps Script:
+
+1. Tryk Deploy
+2. Vælg New deployment
+3. Vælg Web app
+4. Execute as: Me
+5. Who has access: Anyone
+6. Tryk Deploy
+7. Kopiér Web app URL'en
+
+
+TRIN 7 - SÆT URL I APPEN
+------------------------
+
+Åbn app.js.
+
+Find linjen:
+
+  const APPS_SCRIPT_URL = '...';
+
+Indsæt din nye Web app URL mellem apostrofferne.
+
+Eksempel:
+
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/DIT-LANGE-ID/exec';
+
+Gem filen og upload appen til GitHub.
+
+
+SÅDAN BRUGER DU DET I HVERDAGEN
+-------------------------------
+
+Når en bror sender en idé i appen:
+
+- Den lander i fanen Idebank
+- Status bliver automatisk Ny
+
+Hvis I vil arbejde videre med idéen:
+
+- Skift Status til Under behandling
+
+Hvis I vil spørge brødrene om interesse:
+
+- Skift Status til Afstemning
+
+Hvis idéen bliver konkret:
+
+- Skift Status til Planlagt
+- Udfyld Dato for arrangement
+- Udfyld Tidspunkt, Sted og Kontaktperson hvis relevant
+
+Så vises den automatisk som konkret initiativ i appen.
+
+Hvis idéen ikke skal bruges:
+
+- Skift Status til Afvist
+
+Hvis idéen er gennemført:
+
+- Skift Status til Gennemført
+
+
+MINIMUM DU SKAL HUSKE
+---------------------
+
+Alt foregår i fanen:
+
+  Idebank
+
+Det eneste vigtige felt er:
+
+  Status
+
+Status styrer appen.
+
+Det er hele pointen med V2.1.

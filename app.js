@@ -1,4 +1,4 @@
-const APP_VERSION = '1.4.4';
+const APP_VERSION = '1.6.1';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -19,6 +19,20 @@ const initiativeSubmitModal = $('#initiativeSubmitModal');
 const initiativeSubmitForm = $('#initiativeSubmitForm');
 const initiativeSubmitStatus = $('#initiativeSubmitStatus');
 const submitInitiativeButton = $('#submitInitiativeButton');
+const ideaBankBtn = $('#ideaBankBtn');
+const ideaSubmitModal = $('#ideaSubmitModal');
+const ideaSubmitForm = $('#ideaSubmitForm');
+const ideaSubmitStatus = $('#ideaSubmitStatus');
+const submitIdeaButton = $('#submitIdeaButton');
+const ideaPollList = $('#ideaPollList');
+const ideaPipelineList = $('#ideaPipelineList');
+const ideaVoteModal = $('#ideaVoteModal');
+const ideaVoteForm = $('#ideaVoteForm');
+const ideaVoteStatus = $('#ideaVoteStatus');
+const ideaVoteSubmitButton = $('#ideaVoteSubmitButton');
+const ideaVoteTitle = $('#ideaVoteTitle');
+const ideaVoteId = $('#ideaVoteId');
+const ideaVoteName = $('#ideaVoteName');
 const joinModal = $('#joinModal');
 const joinForm = $('#joinForm');
 const joinStatus = $('#joinStatus');
@@ -43,10 +57,13 @@ const newActivityCloseBtn = $('#newActivityCloseBtn');
 let events = [];
 let initiativer = [];
 let participants = [];
+let ideas = [];
+let ideaVotes = [];
+let ideasLoading = true;
 let initiativesLoading = true;
 let currentFilter = 'all';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzivUCgohSlZRNIFGGsa9goS12lTksr7DMmShgC_bAlJODfmOlogCjj2X6eSeBsP8lY/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwV-wtP2Ei4Qpqw2eWf9HU7DZlZClbAGLze19Lr6-I-M9zlNpqKIM8If-EjcmHdCTn3/exec';
 
 function todayMidnight(){
   const d = new Date();
@@ -203,6 +220,14 @@ function firstValue(row, keys){
     if(row && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') return row[key];
   }
   return '';
+}
+
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+}
+
+function escapeAttr(value){
+  return escapeHtml(value).replace(/`/g, '&#96;');
 }
 
 
@@ -498,6 +523,156 @@ function normalizeParticipants(items){
     .filter(p => (p.activityId || p.activity) && p.name);
 }
 
+
+function parseIdeaNames(value){
+  return String(value || '')
+    .split(/[;,\n]/)
+    .map(name => name.trim())
+    .filter(Boolean);
+}
+
+function ideaInterestedCount(item){
+  const numeric = Number(String(item?.interested || '').replace(',', '.'));
+  if(Number.isFinite(numeric) && numeric > 0) return Math.round(numeric);
+  return parseIdeaNames(item?.interestedNames).length;
+}
+
+function isVisibleIdeaStatus(status){
+  const s = String(status || '').trim().toLowerCase();
+  return ['ny','under behandling','afstemning','planlagt','godkendt'].includes(s);
+}
+
+function isPollIdeaStatus(status){
+  const s = String(status || '').trim().toLowerCase();
+  return ['afstemning','poll','interesse','interesseafstemning'].includes(s);
+}
+
+function makeIdeaId(row, index){
+  const existing = firstValue(row, ['id','ID','Forslag ID','Idea ID','ideaId']);
+  if(existing) return String(existing).trim();
+  const title = firstValue(row, ['title','Titel','Forslag','Ide','Idé']);
+  const created = firstValue(row, ['createdAt','Dato','Indsendt','Timestamp','Tidspunkt']);
+  const base = normalizeKey(`${title}-${created}`).replace(/[^a-z0-9æøå -]/g, '').replace(/\s+/g, '-');
+  return base || `idea-${index}`;
+}
+
+function normalizeIdeaRecord(row, index=0){
+  const status = firstValue(row, ['status','Status']) || 'Ny';
+  return {
+    id: makeIdeaId(row, index),
+    status,
+    title: firstValue(row, ['title','Titel','Forslag','Ide','Idé']) || 'Uden titel',
+    text: firstValue(row, ['text','Beskrivelse','Beskrivelse af forslag','Tekst']),
+    category: firstValue(row, ['category','Kategori','Type']) || 'Andet',
+    name: firstValue(row, ['name','Navn','Forslagsstiller','Oprettet af']),
+    help: firstValue(row, ['help','Vil hjælpe','Hjælper','Kan hjælpe']) || 'Nej',
+    estimate: firstValue(row, ['estimate','Forventede deltagere','Deltagerestimat']),
+    interested: firstValue(row, ['interested','Interesserede','Antal interesserede','Stemmer']),
+    interestedNames: firstValue(row, ['interestedNames','Interesserede navne','Navne','Interessenavne']),
+    date: normalizeDate(firstValue(row, ['date','Dato for arrangement','Dato','Planlagt dato'])),
+    time: normalizeTime(firstValue(row, ['time','Tid','Tidspunkt','Planlagt tid'])),
+    place: firstValue(row, ['place','Sted','Lokation']),
+    contact: firstValue(row, ['contact','Kontaktperson','Ansvarlig']),
+    note: firstValue(row, ['note','Bemærkning','Statusnote','Status note'])
+  };
+}
+
+function normalizeIdeas(items){
+  return (Array.isArray(items) ? items : [])
+    .map((row, index) => normalizeIdeaRecord(row, index))
+    .filter(item => item.title)
+    .filter(item => isVisibleIdeaStatus(item.status));
+}
+
+function normalizeIdeaVoteRecord(row){
+  return {
+    ideaId: firstValue(row, ['ideaId','Forslag ID','ID','id']),
+    idea: firstValue(row, ['idea','Forslag','Titel','Idé','Ide']),
+    name: firstValue(row, ['name','Navn','Dit navn']),
+    vote: firstValue(row, ['vote','Svar','Interesse','Stemme']) || 'Ja'
+  };
+}
+
+function normalizeIdeaVotes(items){
+  return (Array.isArray(items) ? items : [])
+    .map(normalizeIdeaVoteRecord)
+    .filter(v => (v.ideaId || v.idea) && v.name);
+}
+
+function votesForIdea(idea){
+  if(!idea) return [];
+  const names = parseIdeaNames(idea.interestedNames);
+  return names.map(name => ({ ideaId: idea.id, idea: idea.title, name, vote: 'Ja' }));
+}
+
+function interestedVotesForIdea(idea){
+  return votesForIdea(idea);
+}
+
+function plannedIdeasAsInitiatives(){
+  return ideas
+    .filter(item => normalizeKey(item.status) === 'planlagt' && item.date)
+    .map(item => ({
+      id: `idea-${item.id}`,
+      icon: '💡',
+      status: 'Godkendt',
+      title: item.title,
+      date: item.date,
+      time: item.time,
+      place: item.place || 'Odd Fellow Bygningen',
+      host: item.contact || item.name || 'Logen',
+      text: item.text || item.note || '',
+      fromIdeaBank: true
+    }));
+}
+
+function renderIdeaBank(){
+  if(!ideaPollList || !ideaPipelineList) return;
+  if(ideasLoading){
+    ideaPollList.innerHTML = `<div class="empty"><span class="mini-spinner" aria-hidden="true"></span> Henter idébank...</div>`;
+    ideaPipelineList.innerHTML = '';
+    return;
+  }
+  const polls = ideas.filter(item => isPollIdeaStatus(item.status));
+  ideaPollList.innerHTML = polls.length ? polls.map(item => {
+    const count = ideaInterestedCount(item);
+    return `<article class="idea-card poll-card">
+      <div class="idea-card-head"><span class="idea-icon">🗳</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)} · ${count} interesseret${count === 1 ? '' : 'e'}</p></div></div>
+      <p>${escapeHtml(item.text || 'Kunne dette være noget for dig?')}</p>
+      <button class="btn primary wide-btn" type="button" onclick="openIdeaVote('${escapeAttr(item.id)}')">Vis interesse</button>
+    </article>`;
+  }).join('') : `<div class="empty">Ingen interesseafstemninger lige nu.</div>`;
+
+  const pipeline = ideas.filter(item => !isPollIdeaStatus(item.status));
+  ideaPipelineList.innerHTML = pipeline.length ? pipeline.map(item => {
+    const count = ideaInterestedCount(item);
+    const statusClass = normalizeKey(item.status).replace(/[^a-z0-9æøå-]/g, '');
+    return `<article class="idea-card pipeline-card">
+      <div class="idea-card-head"><span class="idea-icon">💡</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)}${count ? ` · ${count} interesseret${count === 1 ? '' : 'e'}` : ''}</p></div></div>
+      <p>${escapeHtml(item.text || '')}</p>
+      <div class="idea-meta-row"><span class="status-pill ${escapeAttr(statusClass)}">${escapeHtml(item.status)}</span>${item.help ? `<span>Hjælper: ${escapeHtml(item.help)}</span>` : ''}</div>
+      ${item.note ? `<p class="idea-note">${escapeHtml(item.note)}</p>` : ''}
+    </article>`;
+  }).join('') : `<div class="empty">Ingen idéer under behandling endnu.</div>`;
+}
+
+async function loadIdeasFromSheet(force=false){
+  let data;
+  try{
+    data = await fetchAppsScriptAction('getIdeas', force);
+  }catch(err){
+    data = await fetchAppsScriptAction('list', true);
+  }
+  const rows = arrayRowsToObjects(pickArray(data, ['ideas','ideer','idéer','Forslag','forslag','items','data','rows']));
+  return normalizeIdeas(rows);
+}
+
+async function loadIdeaVotesFromSheet(force=false){
+  // V2.1 bruger ét ark til idébanken. Interesserede læses direkte fra kolonnerne
+  // "Interesserede" og "Interesserede navne" i Idebank-arket. Ingen ekstra ark.
+  return [];
+}
+
 async function loadInitiativesFromSheet(force=false){
   // Prøv specifik action først. Hvis Apps Script ikke har den, læses den samlede list.
   let data;
@@ -526,6 +701,7 @@ function renderAll(){
   renderEventHero();
   renderEventList();
   renderInitiatives();
+  renderIdeaBank();
 }
 
 const SEEN_EVENTS_KEY = 'concordia-seen-event-ids-v1';
@@ -716,16 +892,25 @@ async function init(){
   try{
     initiativer = await loadInitiativesFromSheet(true);
     participants = await loadParticipantsFromSheet(true);
+    ideas = await loadIdeasFromSheet(true);
+    ideaVotes = await loadIdeaVotesFromSheet(true);
+    initiativer = [...initiativer, ...plannedIdeasAsInitiatives()];
     initiativesLoadedSuccessfully = true;
     initiativesLoading = false;
+    ideasLoading = false;
     renderInitiatives();
+    renderIdeaBank();
   }catch(err){
     console.warn('Kunne ikke indlæse initiativdata:', err);
     initiativer = [];
     participants = [];
+    ideas = [];
+    ideaVotes = [];
     initiativesLoadedSuccessfully = false;
     initiativesLoading = false;
+    ideasLoading = false;
     renderInitiatives();
+    renderIdeaBank();
   }
 
   if(loadingScreen){
@@ -756,6 +941,96 @@ $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
   window.scrollTo({top:0, behavior:'smooth'});
 }));
 
+
+if(ideaBankBtn){
+  ideaBankBtn.addEventListener('click', () => {
+    if(ideaSubmitStatus) ideaSubmitStatus.textContent = '';
+    if(ideaSubmitForm) ideaSubmitForm.reset();
+    ideaSubmitModal.showModal();
+  });
+}
+
+const closeIdeaSubmitBtn = $('[data-close-submit-idea]');
+if(closeIdeaSubmitBtn){
+  closeIdeaSubmitBtn.addEventListener('click', () => ideaSubmitModal.close());
+}
+
+const closeIdeaVoteBtn = $('[data-close-idea-vote]');
+if(closeIdeaVoteBtn){
+  closeIdeaVoteBtn.addEventListener('click', () => ideaVoteModal.close());
+}
+
+window.openIdeaVote = function(id){
+  const idea = ideas.find(item => item.id === id);
+  if(!idea) return;
+  ideaVoteId.value = idea.id;
+  ideaVoteTitle.textContent = `Du viser interesse for: ${idea.title}`;
+  ideaVoteStatus.textContent = '';
+  ideaVoteName.value = '';
+  ideaVoteModal.showModal();
+}
+
+if(ideaSubmitForm){
+  ideaSubmitForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const payload = {
+      title: $('#newIdeaTitle').value.trim(),
+      category: $('#newIdeaCategory').value,
+      estimate: $('#newIdeaEstimate').value.trim(),
+      help: $('#newIdeaHelp').value,
+      name: $('#newIdeaName').value.trim(),
+      text: $('#newIdeaText').value.trim()
+    };
+    submitIdeaButton.disabled = true;
+    ideaSubmitStatus.textContent = 'Sender idé...';
+    try{
+      await postToAppsScript('submitIdea', payload);
+      ideaSubmitStatus.textContent = '✓ Idéen er sendt til idébanken.';
+      window.__appsScriptCache = {};
+      ideaSubmitForm.reset();
+      setTimeout(() => ideaSubmitModal.close(), 1400);
+    }catch(err){
+      ideaSubmitStatus.textContent = 'Kunne ikke sende. Tjek Apps Script URL og idébank-ark.';
+      console.error(err);
+    }finally{
+      submitIdeaButton.disabled = false;
+    }
+  });
+}
+
+if(ideaVoteForm){
+  ideaVoteForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const idea = ideas.find(item => item.id === ideaVoteId.value);
+    const payload = {
+      ideaId: ideaVoteId.value,
+      idea: idea ? idea.title : '',
+      name: ideaVoteName.value.trim(),
+      vote: $('input[name="ideaVoteChoice"]:checked')?.value || 'Ja'
+    };
+    const existing = idea ? parseIdeaNames(idea.interestedNames).map(normalizeKey) : [];
+    if(payload.vote === 'Ja' && existing.includes(normalizeKey(payload.name))){
+      ideaVoteStatus.textContent = 'Du har allerede vist interesse for denne idé.';
+      return;
+    }
+    ideaVoteSubmitButton.disabled = true;
+    ideaVoteStatus.textContent = 'Sender svar...';
+    try{
+      await postToAppsScript('voteIdea', payload);
+      ideaVoteStatus.textContent = payload.vote === 'Ja' ? '✓ Din interesse er registreret.' : '✓ Dit svar er registreret.';
+      window.__appsScriptCache = {};
+      ideas = await loadIdeasFromSheet(true);
+      ideaVotes = [];
+      renderIdeaBank();
+      setTimeout(() => ideaVoteModal.close(), 900);
+    }catch(err){
+      ideaVoteStatus.textContent = 'Kunne ikke registrere svar. Tjek Apps Script URL.';
+      console.error(err);
+    }finally{
+      ideaVoteSubmitButton.disabled = false;
+    }
+  });
+}
 
 if(suggestInitiativeBtn){
   suggestInitiativeBtn.addEventListener('click', () => {

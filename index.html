@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Concordia" />
   <title>Det sker i Concordia</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.4.4" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.4.4" />
-  <link rel="stylesheet" href="style.css?v=1.4.4" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.5.0" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.5.0" />
+  <link rel="stylesheet" href="style.css?v=1.5.0" />
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -143,13 +143,29 @@
       <section class="next-block">
         <div class="section-title"><span></span><h2>Broderinitiativer</h2></div>
         <div class="page-card intro-card">
-          <p>Her kan brødre foreslå mindre initiativer som gåture, kaffe, kortspil eller andre uformelle aktiviteter.</p>
-          <p>Forslag sendes direkte her fra appen og vises først, når de er godkendt.</p>
-          <button id="suggestInitiativeBtn" class="btn primary wide-btn" type="button">Foreslå initiativ</button>
+          <p>Her kan brødrene komme med idéer til aktiviteter, forbedringer og fællesskab i logen.</p>
+          <p>Alt styres fra én fane i Google Sheets: skift status, og appen viser idéen det rigtige sted.</p>
+          <div class="initiative-actions">
+            <button id="ideaBankBtn" class="btn primary wide-btn" type="button">💡 Kom med en idé</button>
+            <button id="suggestInitiativeBtn" class="btn soft wide-btn" type="button">Foreslå initiativ med dato</button>
+          </div>
         </div>
       </section>
+
+      <section class="list-block idea-bank-block">
+        <div class="section-title"><span></span><h2>Interesseafstemninger</h2></div>
+        <p class="section-help">Her kan du vise interesse for idéer, før der bruges tid på at planlægge dem.</p>
+        <div id="ideaPollList" class="idea-list"></div>
+      </section>
+
+      <section class="list-block idea-bank-block">
+        <div class="section-title"><span></span><h2>Idéer under udvikling</h2></div>
+        <p class="section-help">Her vises idéer med status Ny, Under behandling eller Planlagt. Gennemført og Afvist vises ikke.</p>
+        <div id="ideaPipelineList" class="idea-list"></div>
+      </section>
+
       <section class="list-block">
-        <div class="section-title"><span></span><h2>Kommende initiativer</h2></div>
+        <div class="section-title"><span></span><h2>Kommende konkrete initiativer</h2></div>
         <div id="initiativeList" class="event-list"></div>
       </section>
       <section class="list-block" id="pastInitiativeBlock" hidden>
@@ -199,13 +215,13 @@
             <p>Scan koden for hurtigt at åbne siden på mobilen.</p>
           </div>
           <figure class="qr-card">
-            <img src="qr.png?v=1.4.4" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
+            <img src="qr.png?v=1.5.0" alt="QR-kode til Det sker i Concordia" loading="lazy" onerror="this.closest('.qr-card').classList.add('qr-missing'); this.hidden=true;">
             <figcaption>QR-kode</figcaption>
             <div class="qr-fallback">Læg <strong>qr.png</strong> i samme mappe som <strong>index.html</strong>.</div>
           </figure>
         </div>
 
-        <p class="app-version">Version <span id="appVersion">1.4.4</span></p>
+        <p class="app-version">Version <span id="appVersion">1.5.0</span></p>
         <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
       </section>
     </main>
@@ -228,6 +244,64 @@
     </div>
   </dialog>
 
+
+  <dialog id="ideaSubmitModal" class="sheet-dialog">
+    <div class="sheet">
+      <button class="close" data-close-submit-idea aria-label="Luk">×</button>
+      <div class="sheet-scroll">
+        <div class="section-title"><span></span><h2>Kom med en idé</h2></div>
+        <p class="form-help">Send en idé til en aktivitet, forbedring eller noget der kan styrke fællesskabet i logen. Den lander i idébanken med status Ny.</p>
+        <form id="ideaSubmitForm" class="initiative-form">
+          <label>Titel<input id="newIdeaTitle" type="text" placeholder="F.eks. Ølsmagning, bowling eller foredrag" required></label>
+          <label>Kategori
+            <select id="newIdeaCategory" required>
+              <option value="">Vælg kategori</option>
+              <option>Socialt</option>
+              <option>Foredrag</option>
+              <option>Udflugt</option>
+              <option>Mad & drikke</option>
+              <option>Sport</option>
+              <option>Logeliv</option>
+              <option>Forbedring</option>
+              <option>Andet</option>
+            </select>
+          </label>
+          <label>Hvor mange tror du kunne være interesserede?<input id="newIdeaEstimate" type="text" placeholder="F.eks. 8-12 brødre"></label>
+          <label>Vil du hjælpe med at arrangere?
+            <select id="newIdeaHelp" required>
+              <option value="Nej">Nej</option>
+              <option value="Ja">Ja</option>
+              <option value="Måske">Måske</option>
+            </select>
+          </label>
+          <label>Dit navn<input id="newIdeaName" type="text" placeholder="Skriv dit navn" required></label>
+          <label>Beskrivelse<textarea id="newIdeaText" rows="5" placeholder="Skriv kort hvad idéen går ud på" required></textarea></label>
+          <button id="submitIdeaButton" class="btn primary wide-btn" type="submit">Send idé</button>
+          <p id="ideaSubmitStatus" class="form-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="ideaVoteModal" class="sheet-dialog">
+    <div class="sheet">
+      <button class="close" data-close-idea-vote aria-label="Luk">×</button>
+      <div class="sheet-scroll">
+        <div class="section-title"><span></span><h2>Vis interesse</h2></div>
+        <p id="ideaVoteTitle" class="form-help"></p>
+        <form id="ideaVoteForm" class="initiative-form">
+          <input id="ideaVoteId" type="hidden">
+          <label>Dit navn<input id="ideaVoteName" type="text" placeholder="Skriv dit navn" required></label>
+          <div class="radio-card-group" role="radiogroup" aria-label="Svar">
+            <label><input type="radio" name="ideaVoteChoice" value="Ja" checked> Ja, det kunne jeg godt være interesseret i</label>
+            <label><input type="radio" name="ideaVoteChoice" value="Nej"> Ikke denne gang</label>
+          </div>
+          <button id="ideaVoteSubmitButton" class="btn primary wide-btn" type="submit">Send svar</button>
+          <p id="ideaVoteStatus" class="form-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="initiativeSubmitModal" class="sheet-dialog">
     <div class="sheet">
@@ -356,7 +430,7 @@
     </div>
   </dialog>
 
-  <script src="gallery-config.js?v=1.4.4"></script>
-  <script src="app.js?v=1.4.4"></script>
+  <script src="gallery-config.js?v=1.5.0"></script>
+  <script src="app.js?v=1.5.0"></script>
 </body>
 </html>
