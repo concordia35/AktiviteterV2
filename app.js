@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.2';
+const APP_VERSION = '1.6.3';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -312,7 +312,7 @@ function participantsFor(initiative){
 function renderInitiatives(){
   if(!initiativeList) return;
   if(initiativesLoading){
-    initiativeList.innerHTML = `<div class="empty initiative-loading"><span class="mini-spinner" aria-hidden="true"></span> Henter initiativer...</div>`;
+    initiativeList.innerHTML = `<div class="empty initiative-loading"><span class="mini-spinner" aria-hidden="true"></span> Henter planlagte aktiviteter...</div>`;
     if(pastInitiativeBlock) pastInitiativeBlock.hidden = true;
     return;
   }
@@ -324,7 +324,7 @@ function renderInitiatives(){
       <div class="event-icon">${e.icon || '🤝'}</div>
       <div><h3>${e.title}</h3><p><strong>${e.host || ''}</strong><br>${daDate(e.date,false)}${e.time ? ' · kl. ' + e.time : ''}<br><span class="participant-count">👥 ${names.length} deltager${names.length === 1 ? '' : 'e'}</span></p></div>
       <div class="chev">›</div>
-    </button>`}).join('') : `<div class="empty">Ingen godkendte initiativer lige nu.</div>`;
+    </button>`}).join('') : `<div class="empty">Der er ingen planlagte aktiviteter fra brødrene lige nu.</div>`;
 
   const old = pastInitiatives();
   if(pastInitiativeBlock && pastInitiativeList){
@@ -363,7 +363,7 @@ window.openInitiative = function(id){
   modalContent.innerHTML = `
     <div class="loge-detail-icon">${e.icon || '🤝'}</div>
     <h2 class="modal-title">${e.title}</h2>
-    <p class="modal-sub">Initiativ fra ${e.host || 'en broder'}</p>
+    <p class="modal-sub">Foreslået af ${e.host || 'en broder'}</p>
     <div class="info-grid">
       <div class="info-row"><span>📅</span><div>${daDate(e.date)}</div></div>
       <div class="info-row"><span>🕘</span><div>${e.time ? 'Kl. ' + e.time : 'Tidspunkt ikke angivet'}</div></div>
@@ -372,10 +372,10 @@ window.openInitiative = function(id){
     <p class="description">${e.text || ''}</p>
     ${participantList}
     <div class="modal-actions">
-      <button class="btn primary" type="button" onclick="openJoinForInitiative(\'${e.id}\')">Jeg deltager</button>
+      <button class="btn primary" type="button" onclick="openJoinForInitiative(\'${e.id}\')">Tilmeld mig aktiviteten</button>
       <a class="btn soft" href="${initiativeCalendarUrl(e)}" target="_blank" rel="noopener">Tilføj kalender</a>
     </div>
-    <p class="sheet-status-note">Skriv dit navn direkte i appen. Deltagerlisten opdateres automatisk efter tilmelding.</p>`;
+    <p class="sheet-status-note">Skriv dit navn og tryk på tilmeldingsknappen. Dit navn vises derefter på deltagerlisten.</p>`;
   modal.showModal();
 }
 
@@ -664,6 +664,16 @@ function isPollIdeaStatus(status){
   return ['afstemning','poll','interesse','interesseafstemning'].includes(s);
 }
 
+function ideaStatusLabel(status){
+  const s = normalizeKey(status);
+  if(s === 'ny') return 'Forslaget er modtaget';
+  if(s === 'under behandling') return 'Forslaget bliver undersøgt';
+  if(s === 'afstemning') return 'Brødrene kan vise interesse';
+  if(s === 'planlagt') return 'Aktiviteten bliver planlagt';
+  if(s === 'godkendt') return 'Forslaget er godkendt';
+  return status || 'Status ikke angivet';
+}
+
 function makeIdeaId(row, index){
   const existing = firstValue(row, ['id','ID','Forslag ID','Idea ID','ideaId']);
   if(existing) return String(existing).trim();
@@ -746,7 +756,7 @@ function plannedIdeasAsInitiatives(){
 function renderIdeaBank(){
   if(!ideaPollList || !ideaPipelineList) return;
   if(ideasLoading){
-    ideaPollList.innerHTML = `<div class="empty"><span class="mini-spinner" aria-hidden="true"></span> Henter idébank...</div>`;
+    ideaPollList.innerHTML = `<div class="empty"><span class="mini-spinner" aria-hidden="true"></span> Henter forslag...</div>`;
     ideaPipelineList.innerHTML = '';
     return;
   }
@@ -754,23 +764,23 @@ function renderIdeaBank(){
   ideaPollList.innerHTML = polls.length ? polls.map(item => {
     const count = ideaInterestedCount(item);
     return `<article class="idea-card poll-card">
-      <div class="idea-card-head"><span class="idea-icon">🗳</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)} · ${count} interesseret${count === 1 ? '' : 'e'}</p></div></div>
+      <div class="idea-card-head"><span class="idea-icon">🗳</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)} · ${count} ${count === 1 ? 'broder har' : 'brødre har'} vist interesse</p></div></div>
       <p>${escapeHtml(item.text || 'Kunne dette være noget for dig?')}</p>
-      <button class="btn primary wide-btn" type="button" onclick="openIdeaVote('${escapeAttr(item.id)}')">Vis interesse</button>
+      <button class="btn primary wide-btn" type="button" onclick="openIdeaVote('${escapeAttr(item.id)}')">Jeg er interesseret</button>
     </article>`;
-  }).join('') : `<div class="empty">Ingen interesseafstemninger lige nu.</div>`;
+  }).join('') : `<div class="empty">Der er ingen forslag, du kan vise interesse for lige nu.</div>`;
 
   const pipeline = ideas.filter(item => !isPollIdeaStatus(item.status));
   ideaPipelineList.innerHTML = pipeline.length ? pipeline.map(item => {
     const count = ideaInterestedCount(item);
     const statusClass = normalizeKey(item.status).replace(/[^a-z0-9æøå-]/g, '');
     return `<article class="idea-card pipeline-card">
-      <div class="idea-card-head"><span class="idea-icon">💡</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)}${count ? ` · ${count} interesseret${count === 1 ? '' : 'e'}` : ''}</p></div></div>
+      <div class="idea-card-head"><span class="idea-icon">💡</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)}${count ? ` · ${count} ${count === 1 ? 'broder har' : 'brødre har'} vist interesse` : ''}</p></div></div>
       <p>${escapeHtml(item.text || '')}</p>
-      <div class="idea-meta-row"><span class="status-pill ${escapeAttr(statusClass)}">${escapeHtml(item.status)}</span>${item.help ? `<span>Hjælper: ${escapeHtml(item.help)}</span>` : ''}</div>
+      <div class="idea-meta-row"><span class="status-pill ${escapeAttr(statusClass)}">${escapeHtml(ideaStatusLabel(item.status))}</span>${item.help ? `<span>Vil hjælpe med at arrangere: ${escapeHtml(item.help)}</span>` : ''}</div>
       ${item.note ? `<p class="idea-note">${escapeHtml(item.note)}</p>` : ''}
     </article>`;
-  }).join('') : `<div class="empty">Ingen idéer under behandling endnu.</div>`;
+  }).join('') : `<div class="empty">Der er ingen forslag, som bliver undersøgt lige nu.</div>`;
 }
 
 async function loadIdeasFromSheet(force=false){
@@ -902,16 +912,16 @@ function showNewContentPopup(){
     newActivityOpenBtn.textContent = 'Se aktiviteten';
   }else if(newItems.length === 1){
     const item = first.item;
-    newActivityTitle.textContent = 'Nyt broderinitiativ';
-    newActivityText.textContent = `${item.title} er blevet godkendt og lagt i appen.`;
-    newActivityOpenBtn.textContent = 'Se initiativet';
+    newActivityTitle.textContent = 'Ny aktivitet fra en broder';
+    newActivityText.textContent = `${item.title} er blevet godkendt og har nu fået en dato.`;
+    newActivityOpenBtn.textContent = 'Se aktiviteten';
   }else if(newEvents.length && newInitiatives.length){
     newActivityTitle.textContent = `${newItems.length} nye opslag`;
-    newActivityText.textContent = `Der er ${newEvents.length} ${newEvents.length === 1 ? 'ny aktivitet' : 'nye aktiviteter'} og ${newInitiatives.length} ${newInitiatives.length === 1 ? 'nyt initiativ' : 'nye initiativer'} siden sidst.`;
+    newActivityText.textContent = `Der er ${newEvents.length} ${newEvents.length === 1 ? 'ny aktivitet' : 'nye aktiviteter'} og ${newInitiatives.length} ${newInitiatives.length === 1 ? 'ny aktivitet fra en broder' : 'nye aktiviteter fra brødrene'} siden sidst.`;
     newActivityOpenBtn.textContent = 'Se det første';
   }else if(newInitiatives.length){
-    newActivityTitle.textContent = `${newInitiatives.length} nye initiativer`;
-    newActivityText.textContent = 'Der er lagt nye godkendte broderinitiativer i appen siden sidst.';
+    newActivityTitle.textContent = `${newInitiatives.length} nye aktiviteter fra brødrene`;
+    newActivityText.textContent = 'Der er kommet nye godkendte aktiviteter med dato siden dit sidste besøg.';
     newActivityOpenBtn.textContent = 'Se initiativerne';
   }else{
     newActivityTitle.textContent = `${newEvents.length} nye aktiviteter`;
@@ -1104,7 +1114,7 @@ window.openIdeaVote = function(id){
   const idea = ideas.find(item => item.id === id);
   if(!idea) return;
   ideaVoteId.value = idea.id;
-  ideaVoteTitle.textContent = `Du viser interesse for: ${idea.title}`;
+  ideaVoteTitle.textContent = `Vil du måske deltage i: ${idea.title}? Dette er ikke en bindende tilmelding.`;
   ideaVoteStatus.textContent = '';
   ideaVoteName.value = '';
   ideaVoteModal.showModal();
@@ -1122,15 +1132,15 @@ if(ideaSubmitForm){
       text: $('#newIdeaText').value.trim()
     };
     submitIdeaButton.disabled = true;
-    ideaSubmitStatus.textContent = 'Sender idé...';
+    ideaSubmitStatus.textContent = 'Sender dit forslag...';
     try{
       await postToAppsScript('submitIdea', payload);
-      ideaSubmitStatus.textContent = '✓ Idéen er sendt til idébanken.';
+      ideaSubmitStatus.textContent = '✓ Forslaget er modtaget og skal nu godkendes.';
       window.__appsScriptCache = {};
       ideaSubmitForm.reset();
       setTimeout(() => ideaSubmitModal.close(), 1400);
     }catch(err){
-      ideaSubmitStatus.textContent = 'Kunne ikke sende. Tjek Apps Script URL og idébank-ark.';
+      ideaSubmitStatus.textContent = 'Forslaget kunne ikke sendes. Kontrollér forbindelsen og prøv igen.';
       console.error(err);
     }finally{
       submitIdeaButton.disabled = false;
@@ -1150,21 +1160,21 @@ if(ideaVoteForm){
     };
     const existing = idea ? parseIdeaNames(idea.interestedNames).map(normalizeKey) : [];
     if(payload.vote === 'Ja' && existing.includes(normalizeKey(payload.name))){
-      ideaVoteStatus.textContent = 'Du har allerede vist interesse for denne idé.';
+      ideaVoteStatus.textContent = 'Dit navn står allerede på listen over interesserede.';
       return;
     }
     ideaVoteSubmitButton.disabled = true;
-    ideaVoteStatus.textContent = 'Sender svar...';
+    ideaVoteStatus.textContent = 'Gemmer dit svar...';
     try{
       await postToAppsScript('voteIdea', payload);
-      ideaVoteStatus.textContent = payload.vote === 'Ja' ? '✓ Din interesse er registreret.' : '✓ Dit svar er registreret.';
+      ideaVoteStatus.textContent = payload.vote === 'Ja' ? '✓ Dit navn er føjet til listen over interesserede.' : '✓ Dit svar er gemt.';
       window.__appsScriptCache = {};
       ideas = await loadIdeasFromSheet(true);
       ideaVotes = [];
       renderIdeaBank();
       setTimeout(() => ideaVoteModal.close(), 900);
     }catch(err){
-      ideaVoteStatus.textContent = 'Kunne ikke registrere svar. Tjek Apps Script URL.';
+      ideaVoteStatus.textContent = 'Dit svar kunne ikke gemmes. Kontrollér forbindelsen og prøv igen.';
       console.error(err);
     }finally{
       ideaVoteSubmitButton.disabled = false;
@@ -1202,15 +1212,15 @@ if(initiativeSubmitForm){
       text: $('#newInitiativeText').value.trim()
     };
     submitInitiativeButton.disabled = true;
-    initiativeSubmitStatus.textContent = 'Sender forslag...';
+    initiativeSubmitStatus.textContent = 'Sender aktiviteten til godkendelse...';
     try{
       await postToAppsScript('submitInitiative', payload);
-      initiativeSubmitStatus.textContent = '✓ Forslaget er sendt til godkendelse.';
+      initiativeSubmitStatus.textContent = '✓ Aktiviteten er sendt til godkendelse.';
       window.__appsScriptCache = {};
       initiativeSubmitForm.reset();
       setTimeout(() => initiativeSubmitModal.close(), 1200);
     }catch(err){
-      initiativeSubmitStatus.textContent = 'Kunne ikke sende. Tjek Apps Script URL.';
+      initiativeSubmitStatus.textContent = 'Aktiviteten kunne ikke sendes. Kontrollér forbindelsen og prøv igen.';
       console.error(err);
     }finally{
       submitInitiativeButton.disabled = false;
@@ -1229,14 +1239,14 @@ if(joinForm){
     const initiative = initiativeById(payload.activityId);
     const existingNames = initiative ? participantsFor(initiative).map(normalizeKey) : [];
     if(existingNames.includes(normalizeKey(payload.name))){
-      joinStatus.textContent = 'Du står allerede på deltagerlisten.';
+      joinStatus.textContent = 'Du er allerede tilmeldt denne aktivitet.';
       return;
     }
     joinSubmitButton.disabled = true;
-    joinStatus.textContent = 'Sender tilmelding...';
+    joinStatus.textContent = 'Sender din tilmelding...';
     try{
       await postToAppsScript('joinActivity', payload);
-      joinStatus.textContent = '✓ Du er tilmeldt.';
+      joinStatus.textContent = '✓ Du er nu tilmeldt aktiviteten.';
       await new Promise(resolve => setTimeout(resolve, 900));
       await refreshParticipants();
       renderInitiatives();
@@ -1245,7 +1255,7 @@ if(joinForm){
         openInitiative(payload.activityId);
       }, 800);
     }catch(err){
-      joinStatus.textContent = 'Kunne ikke tilmelde. Tjek Apps Script URL.';
+      joinStatus.textContent = 'Tilmeldingen kunne ikke gemmes. Kontrollér forbindelsen og prøv igen.';
       console.error(err);
     }finally{
       joinSubmitButton.disabled = false;
@@ -1353,28 +1363,28 @@ const SignupApp = (() => {
     if (!CONFIG.GOOGLE_APPS_SCRIPT_URL) {
       state.members = fallbackMembers();
       state.events = [];
-      els.syncStatus.textContent = 'Google Sheet er ikke koblet på.';
+      els.syncStatus.textContent = 'Tilmeldingen er ikke klar endnu.';
       renderMembers();
       render();
       return;
     }
 
     try {
-      els.syncStatus.textContent = 'Henter fra Google Sheet…';
+      els.syncStatus.textContent = 'Henter de nyeste tilmeldinger…';
       const res = await fetch(`${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=list&t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       state.members = normalizeMembers(data.members);
       state.rows = normalizeRows(data.rows || data.signups || []);
       state.events = getUpcomingEvents(normalizeEvents(data.events || []));
       mergeCurrentUserRows();
-      els.syncStatus.textContent = 'Koblet på Google Sheet.';
+      els.syncStatus.textContent = 'De nyeste tilmeldinger er hentet.';
     } catch (err) {
       console.warn('Kunne ikke hente tilmeldingsdata', err);
       state.members = fallbackMembers();
       state.rows = [];
       state.signups = {};
       state.events = [];
-      els.syncStatus.textContent = 'Kunne ikke hente fra Google Sheet.';
+      els.syncStatus.textContent = 'Tilmeldingerne kunne ikke hentes. Prøv at genindlæse siden.';
     }
 
     renderMembers();
@@ -1644,13 +1654,13 @@ const SignupApp = (() => {
       });
       const data = await res.json();
       if (!(data.ok || data.success)) throw new Error(data.error || 'Ukendt fejl');
-      els.saveStatus.textContent = 'Gemt i Google Sheet.';
+      els.saveStatus.textContent = 'Din tilmelding er gemt.';
       await refreshFromSheet();
       setTimeout(() => closeModal(), 650);
     } catch (err) {
       console.warn('Kunne ikke gemme tilmelding', err);
       els.saveSignupBtn.disabled = false;
-      els.saveStatus.textContent = 'Kunne ikke gemme i Google Sheet.';
+      els.saveStatus.textContent = 'Din tilmelding kunne ikke gemmes. Prøv igen.';
     }
   }
 
@@ -1761,15 +1771,15 @@ const SignupApp = (() => {
 
   function getStatus(s, event) {
     const locked = event ? isDeadlinePassed(event) : false;
-    if (!s) return locked ? { label: 'Frist overskredet', className: 'status-no' } : { label: 'Ikke valgt', className: 'status-none' };
-    if (s.attending === 'no') return { label: locked ? 'Deltager ikke · låst' : 'Deltager ikke', className: 'status-no' };
+    if (!s) return locked ? { label: 'Fristen er udløbet', className: 'status-no' } : { label: 'Ikke tilmeldt endnu', className: 'status-none' };
+    if (s.attending === 'no') return { label: locked ? 'Deltager ikke · frist udløbet' : 'Deltager ikke', className: 'status-no' };
     if (s.attending === 'yes' && s.meal === 'yes') {
-      return { label: s.guest === 'yes' ? (locked ? 'Deltager + mad + gæst · låst' : 'Deltager + mad + gæst') : (locked ? 'Deltager + mad · låst' : 'Deltager + mad'), className: 'status-yes' };
+      return { label: s.guest === 'yes' ? (locked ? 'Tilmeldt med mad og gæst · frist udløbet' : 'Tilmeldt med mad og gæst') : (locked ? 'Tilmeldt med mad · frist udløbet' : 'Tilmeldt med mad'), className: 'status-yes' };
     }
     if (s.attending === 'yes') {
-      return { label: s.guest === 'yes' ? (locked ? 'Deltager uden mad + gæst · låst' : 'Deltager uden mad + gæst') : (locked ? 'Deltager uden mad · låst' : 'Deltager uden mad'), className: 'status-meal-no' };
+      return { label: s.guest === 'yes' ? (locked ? 'Tilmeldt uden mad, med gæst · frist udløbet' : 'Tilmeldt uden mad, med gæst') : (locked ? 'Tilmeldt uden mad · frist udløbet' : 'Tilmeldt uden mad'), className: 'status-meal-no' };
     }
-    return { label: 'Ikke valgt', className: 'status-none' };
+    return { label: 'Ikke tilmeldt endnu', className: 'status-none' };
   }
 
   function getUpcomingEvents(events) {
@@ -2503,7 +2513,7 @@ const NotificationManager = (() => {
 
     if(!state.supported){
       setPromptVisible(false);
-      if(notificationStatusText) notificationStatusText.textContent = 'Denne browser understøtter ikke webnotifikationer.';
+      if(notificationStatusText) notificationStatusText.textContent = 'Denne browser kan ikke modtage beskeder fra appen.';
       if(notificationToggleBtn){
         notificationToggleBtn.textContent = 'Ikke understøttet';
         notificationToggleBtn.disabled = true;
@@ -2516,7 +2526,7 @@ const NotificationManager = (() => {
       setPromptVisible(localStorage.getItem(DISMISSED_KEY) !== '1');
       if(notificationPromptText) notificationPromptText.textContent = 'På iPhone skal appen først føjes til hjemmeskærmen.';
       if(notificationPromptBtn) notificationPromptBtn.textContent = 'Se hvordan';
-      if(notificationStatusText) notificationStatusText.textContent = 'På iPhone virker notifikationer kun fra den installerede webapp.';
+      if(notificationStatusText) notificationStatusText.textContent = 'På iPhone virker beskeder kun, når appen er føjet til hjemmeskærmen.';
       if(notificationToggleBtn){
         notificationToggleBtn.textContent = 'Sådan installerer du appen';
         notificationToggleBtn.disabled = false;
@@ -2527,7 +2537,7 @@ const NotificationManager = (() => {
 
     if(state.browserPermission === 'denied'){
       setPromptVisible(false);
-      if(notificationStatusText) notificationStatusText.textContent = 'Notifikationer er blokeret i browserens indstillinger.';
+      if(notificationStatusText) notificationStatusText.textContent = 'Beskeder fra appen er blokeret i browserens indstillinger.';
       if(notificationToggleBtn){
         notificationToggleBtn.textContent = 'Blokeret i browseren';
         notificationToggleBtn.disabled = true;
@@ -2538,31 +2548,31 @@ const NotificationManager = (() => {
 
     if(state.optedIn){
       setPromptVisible(false);
-      if(notificationStatusText) notificationStatusText.textContent = 'Notifikationer er slået til på denne enhed.';
+      if(notificationStatusText) notificationStatusText.textContent = 'Beskeder fra appen er slået til på denne enhed.';
       if(notificationToggleBtn){
-        notificationToggleBtn.textContent = 'Slå notifikationer fra';
+        notificationToggleBtn.textContent = 'Slå beskeder fra';
         notificationToggleBtn.disabled = busy;
         notificationToggleBtn.classList.remove('primary');
         notificationToggleBtn.classList.add('soft');
       }
-      setHelp('Du får besked om nye aktiviteter, godkendte broderinitiativer og sidste tilmeldingsfrist til logeaftener. Små rettelser sender ikke en ny besked.');
+      setHelp('Du får besked om nye aktiviteter, nye godkendte forslag og tilmeldingsfrister til logeaftener.');
       return;
     }
 
     const dismissed = localStorage.getItem(DISMISSED_KEY) === '1';
     setPromptVisible(!dismissed);
-    if(notificationPromptText) notificationPromptText.textContent = 'Slå notifikationer til, så du ikke overser nye aktiviteter eller initiativer.';
+    if(notificationPromptText) notificationPromptText.textContent = 'Slå beskeder til, så du får besked om nye aktiviteter, forslag og tilmeldingsfrister.';
     if(notificationPromptBtn) notificationPromptBtn.textContent = state.permission ? 'Slå til igen' : 'Slå til';
     if(notificationStatusText) notificationStatusText.textContent = state.permission
       ? 'Tilladelsen er givet, men abonnementet er slået fra.'
-      : 'Notifikationer er ikke slået til på denne enhed.';
+      : 'Beskeder fra appen er ikke slået til på denne enhed.';
     if(notificationToggleBtn){
-      notificationToggleBtn.textContent = state.permission ? 'Slå notifikationer til igen' : 'Slå notifikationer til';
+      notificationToggleBtn.textContent = state.permission ? 'Slå beskeder til igen' : 'Slå beskeder til';
       notificationToggleBtn.disabled = busy;
       notificationToggleBtn.classList.remove('soft');
       notificationToggleBtn.classList.add('primary');
     }
-    setHelp('Browseren spørger om tilladelse. Vælg “Tillad”, ellers kan appen ikke sende beskeder.');
+    setHelp('Browseren spørger om tilladelse. Vælg “Tillad”, hvis du vil modtage beskeder fra appen.');
   }
 
   async function toggle(){
@@ -2590,7 +2600,7 @@ const NotificationManager = (() => {
       }
     }catch(error){
       console.error('Kunne ikke ændre notifikationsstatus', error);
-      setHelp('Det lykkedes ikke. Kontrollér browserens tilladelse til notifikationer og prøv igen.');
+      setHelp('Det lykkedes ikke. Kontrollér browserens tilladelse til beskeder og prøv igen.');
     }finally{
       busy = false;
       if(notificationPromptBtn) notificationPromptBtn.disabled = false;

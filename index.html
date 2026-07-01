@@ -28,8 +28,8 @@
             appId: '6917c2bb-a55c-4899-81c3-6664760c12ed',
 
             welcomeNotification: {
-              title: 'Notifikationer er slået til',
-              message: 'Du får nu besked om nye aktiviteter og godkendte initiativer.',
+              title: 'Beskeder fra appen er slået til',
+              message: 'Du får nu besked om nye aktiviteter, nye forslag og tilmeldingsfrister.',
               url: `${window.location.origin}${appBasePath}`
             },
             
@@ -55,7 +55,7 @@
     <div class="loading-card">
       <img src="assets/chainlinks.jpg" alt="" class="loading-chain">
       <div class="loading-title">Det sker i Concordia</div>
-      <div class="loading-text">Henter aktiviteter...</div>
+      <div class="loading-text">Henter de nyeste oplysninger...</div>
       <div class="loading-spinner" aria-hidden="true"></div>
     </div>
   </div>
@@ -71,8 +71,8 @@
     <section id="notificationPromptCard" class="notification-prompt-card" hidden aria-live="polite">
       <div class="notification-prompt-icon" aria-hidden="true">🔔</div>
       <div class="notification-prompt-copy">
-        <strong>Få besked om nye aktiviteter og initiativer</strong>
-        <span id="notificationPromptText">Slå notifikationer til, så du ikke overser nye aktiviteter eller initiativer.</span>
+        <strong>Få besked, når der sker noget nyt</strong>
+        <span id="notificationPromptText">Slå beskeder til, så du får besked om nye aktiviteter, forslag og tilmeldingsfrister.</span>
       </div>
       <button id="notificationPromptBtn" class="btn primary notification-prompt-btn" type="button">Slå til</button>
       <button id="notificationPromptDismiss" class="notification-prompt-dismiss" type="button" aria-label="Vis ikke beskeden igen">×</button>
@@ -106,16 +106,16 @@
 
     <main id="viewLoge" class="view">
       <section class="page-card signup-page-card">
-        <div class="section-title"><span></span><h2>Tilmelding</h2></div>
-        <p class="signup-intro">Vælg dit navn én gang. Derefter kan du tilmelde dig kommende aftener med eller uden mad.</p>
+        <div class="section-title"><span></span><h2>Tilmelding til logeaftener</h2></div>
+        <p class="signup-intro">Vælg dit navn. Tryk derefter på en aften for at vælge, om du deltager, spiser med eller tager en gæst med.</p>
 
         <div class="signup-member-row">
           <select id="signupMemberSelect" aria-label="Vælg navn">
             <option value="">Vælg navn</option>
           </select>
-          <button id="signupSaveMemberBtn" class="btn primary" type="button">Gem</button>
+          <button id="signupSaveMemberBtn" class="btn primary" type="button">Husk mit navn</button>
         </div>
-        <p id="signupSyncStatus" class="signup-sync-status">Henter fra Google Sheet…</p>
+        <p id="signupSyncStatus" class="signup-sync-status">Henter de nyeste tilmeldinger…</p>
       </section>
 
       <section class="signup-stats-grid" aria-label="Oversigt over tilmeldinger">
@@ -141,35 +141,36 @@
 
     <main id="viewInitiatives" class="view">
       <section class="next-block">
-        <div class="section-title"><span></span><h2>Broderinitiativer</h2></div>
+        <div class="section-title"><span></span><h2>Forslag fra brødrene</h2></div>
         <div class="page-card intro-card">
-          <p>Her kan brødrene komme med idéer til aktiviteter, forbedringer og fællesskab i logen.</p>
-          <p>Alt styres fra én fane i Google Sheets: skift status, og appen viser idéen det rigtige sted.</p>
+          <p>Her kan du foreslå noget nyt eller se, hvad andre brødre har foreslået.</p>
+          <p>Har du kun en idé, skal du vælge <strong>Send et forslag</strong>. Kender du allerede datoen, skal du vælge <strong>Opret en aktivitet med dato</strong>.</p>
           <div class="initiative-actions">
-            <button id="ideaBankBtn" class="btn primary wide-btn" type="button">💡 Kom med en idé</button>
-            <button id="suggestInitiativeBtn" class="btn soft wide-btn" type="button">Foreslå initiativ med dato</button>
+            <button id="ideaBankBtn" class="btn primary wide-btn" type="button">💡 Send et forslag</button>
+            <button id="suggestInitiativeBtn" class="btn soft wide-btn" type="button">📅 Opret aktivitet med dato</button>
           </div>
         </div>
       </section>
 
       <section class="list-block idea-bank-block">
-        <div class="section-title"><span></span><h2>Interesseafstemninger</h2></div>
-        <p class="section-help">Her kan du vise interesse for idéer, før der bruges tid på at planlægge dem.</p>
+        <div class="section-title"><span></span><h2>Forslag, du kan støtte</h2></div>
+        <p class="section-help">Tryk på <strong>Jeg er interesseret</strong>, hvis du måske gerne vil deltage. Det er ikke en bindende tilmelding.</p>
         <div id="ideaPollList" class="idea-list"></div>
       </section>
 
       <section class="list-block idea-bank-block">
-        <div class="section-title"><span></span><h2>Idéer under udvikling</h2></div>
-        <p class="section-help">Her vises idéer med status Ny, Under behandling eller Planlagt. Gennemført og Afvist vises ikke.</p>
+        <div class="section-title"><span></span><h2>Forslag, der undersøges</h2></div>
+        <p class="section-help">Her kan du følge forslag, som er modtaget, bliver undersøgt eller er ved at blive planlagt.</p>
         <div id="ideaPipelineList" class="idea-list"></div>
       </section>
 
       <section class="list-block">
-        <div class="section-title"><span></span><h2>Kommende konkrete initiativer</h2></div>
+        <div class="section-title"><span></span><h2>Planlagte aktiviteter fra brødrene</h2></div>
+        <p class="section-help">Disse aktiviteter har fået en dato. Tryk på en aktivitet for at læse mere eller tilmelde dig.</p>
         <div id="initiativeList" class="event-list"></div>
       </section>
       <section class="list-block" id="pastInitiativeBlock" hidden>
-        <details><summary>Tidligere initiativer</summary><div id="pastInitiativeList" class="event-list archive-list"></div></details>
+        <details><summary>Tidligere aktiviteter fra brødrene</summary><div id="pastInitiativeList" class="event-list archive-list"></div></details>
       </section>
     </main>
 
@@ -180,7 +181,7 @@
           <div class="section-title"><span></span><h2>Galleri</h2></div>
           <button id="galleryUploadBtn" class="btn primary gallery-upload-btn" type="button">Upload billeder</button>
         </div>
-        <p>Godkendte billeder samles i en mappe for hver aktivitet.</p>
+        <p>Tryk på en mappe for at se billeder fra den valgte aktivitet. Du kan også sende dine egne billeder til godkendelse.</p>
         <p id="gallerySyncStatus" class="gallery-sync-status" aria-live="polite">Henter billeder…</p>
       </section>
 
@@ -195,13 +196,13 @@
         <p>Denne app er lavet for at give brødrene et samlet og hurtigt overblik over, hvad der sker i Concordia.</p>
         <p>Her kan du se kommende aktiviteter, tilmelde dig kommende aftener, se billeder fra logen og lægge arrangementer direkte i din kalender.</p>
         <p>Formålet er enkelt: mindre roden rundt i gamle mails og opslag – mere overblik på mobilen.</p>
-        <p>Appen samler aktiviteter, tilmelding, broderinitiativer og Concordias interne billedgalleri ét sted.</p>
+        <p>Appen samler aktiviteter, tilmeldinger, forslag fra brødrene og Concordias interne billedgalleri ét sted.</p>
 
         <div id="notificationSettings" class="notification-settings" aria-live="polite">
           <div class="notification-settings-head">
             <div class="notification-settings-icon" aria-hidden="true">🔔</div>
             <div>
-              <h3>Notifikationer</h3>
+              <h3>Beskeder fra appen</h3>
               <p id="notificationStatusText">Kontrollerer status…</p>
             </div>
           </div>
@@ -221,7 +222,7 @@
           </figure>
         </div>
 
-        <p class="app-version">Version <span id="appVersion">1.5.0</span></p>
+        <p class="app-version">Version <span id="appVersion">1.6.3</span></p>
         <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
       </section>
     </main>
@@ -229,7 +230,7 @@
     <nav class="bottom-nav" aria-label="Navigation">
       <button class="nav-btn active" data-view="overview"><span>▦</span><small>Aktiviteter</small></button>
       <button class="nav-btn" data-view="loge"><span>✓</span><small>Tilmelding</small></button>
-      <button class="nav-btn" data-view="initiatives"><span>🤝</span><small>Initiativer</small></button>
+      <button class="nav-btn" data-view="initiatives"><span>💡</span><small>Forslag</small></button>
       <button class="nav-btn" data-view="gallery"><span>▧</span><small>Galleri</small></button>
       <button class="nav-btn" data-view="about"><span>ⓘ</span><small>Om</small></button>
     </nav>
@@ -249,8 +250,8 @@
     <div class="sheet">
       <button class="close" data-close-submit-idea aria-label="Luk">×</button>
       <div class="sheet-scroll">
-        <div class="section-title"><span></span><h2>Kom med en idé</h2></div>
-        <p class="form-help">Send en idé til en aktivitet, forbedring eller noget der kan styrke fællesskabet i logen. Den lander i idébanken med status Ny.</p>
+        <div class="section-title"><span></span><h2>Send et forslag</h2></div>
+        <p class="form-help">Brug denne formular, når du har en idé, men endnu ikke har fastlagt dato og sted. Forslaget bliver først vist, når det er godkendt.</p>
         <form id="ideaSubmitForm" class="initiative-form">
           <label>Titel<input id="newIdeaTitle" type="text" placeholder="F.eks. Ølsmagning, bowling eller foredrag" required></label>
           <label>Kategori
@@ -276,7 +277,7 @@
           </label>
           <label>Dit navn<input id="newIdeaName" type="text" placeholder="Skriv dit navn" required></label>
           <label>Beskrivelse<textarea id="newIdeaText" rows="5" placeholder="Skriv kort hvad idéen går ud på" required></textarea></label>
-          <button id="submitIdeaButton" class="btn primary wide-btn" type="submit">Send idé</button>
+          <button id="submitIdeaButton" class="btn primary wide-btn" type="submit">Send forslaget</button>
           <p id="ideaSubmitStatus" class="form-status" aria-live="polite"></p>
         </form>
       </div>
@@ -287,7 +288,7 @@
     <div class="sheet">
       <button class="close" data-close-idea-vote aria-label="Luk">×</button>
       <div class="sheet-scroll">
-        <div class="section-title"><span></span><h2>Vis interesse</h2></div>
+        <div class="section-title"><span></span><h2>Er du interesseret?</h2></div>
         <p id="ideaVoteTitle" class="form-help"></p>
         <form id="ideaVoteForm" class="initiative-form">
           <input id="ideaVoteId" type="hidden">
@@ -296,7 +297,7 @@
             <label><input type="radio" name="ideaVoteChoice" value="Ja" checked> Ja, det kunne jeg godt være interesseret i</label>
             <label><input type="radio" name="ideaVoteChoice" value="Nej"> Ikke denne gang</label>
           </div>
-          <button id="ideaVoteSubmitButton" class="btn primary wide-btn" type="submit">Send svar</button>
+          <button id="ideaVoteSubmitButton" class="btn primary wide-btn" type="submit">Gem mit svar</button>
           <p id="ideaVoteStatus" class="form-status" aria-live="polite"></p>
         </form>
       </div>
@@ -307,8 +308,8 @@
     <div class="sheet">
       <button class="close" data-close-submit-initiative aria-label="Luk">×</button>
       <div class="sheet-scroll">
-        <div class="section-title"><span></span><h2>Foreslå initiativ</h2></div>
-        <p class="form-help">Forslaget sendes til godkendelse, før det bliver synligt i appen.</p>
+        <div class="section-title"><span></span><h2>Opret en aktivitet med dato</h2></div>
+        <p class="form-help">Brug denne formular, når du allerede kender datoen for aktiviteten. Aktiviteten bliver først vist, når den er godkendt.</p>
         <form id="initiativeSubmitForm" class="initiative-form">
           <label>Titel<input id="newInitiativeTitle" type="text" placeholder="F.eks. Gåtur i Lystskoven" required></label>
           <label>Dato<input id="newInitiativeDate" type="date" required></label>
@@ -316,7 +317,7 @@
           <label>Sted<input id="newInitiativePlace" type="text" placeholder="F.eks. Slagelse Lystskov"></label>
           <label>Kontaktperson<input id="newInitiativeHost" type="text" placeholder="Dit navn" required></label>
           <label>Beskrivelse<textarea id="newInitiativeText" rows="5" placeholder="Skriv kort hvad aktiviteten går ud på" required></textarea></label>
-          <button id="submitInitiativeButton" class="btn primary wide-btn" type="submit">Send forslag</button>
+          <button id="submitInitiativeButton" class="btn primary wide-btn" type="submit">Send aktiviteten til godkendelse</button>
           <p id="initiativeSubmitStatus" class="form-status" aria-live="polite"></p>
         </form>
       </div>
@@ -327,13 +328,13 @@
     <div class="sheet">
       <button class="close" data-close-join aria-label="Luk">×</button>
       <div class="sheet-scroll">
-        <div class="section-title"><span></span><h2>Jeg deltager</h2></div>
+        <div class="section-title"><span></span><h2>Tilmeld dig aktiviteten</h2></div>
         <p id="joinActivityTitle" class="form-help"></p>
         <form id="joinForm" class="initiative-form">
           <input id="joinActivityId" type="hidden">
           <input id="joinActivityName" type="hidden">
           <label>Dit navn<input id="joinName" type="text" placeholder="Skriv dit navn" required></label>
-          <button id="joinSubmitButton" class="btn primary wide-btn" type="submit">Tilmeld mig</button>
+          <button id="joinSubmitButton" class="btn primary wide-btn" type="submit">Ja, tilmeld mig</button>
           <p id="joinStatus" class="form-status" aria-live="polite"></p>
         </form>
       </div>
@@ -413,7 +414,7 @@
           <textarea id="signupNoteInput" rows="3" placeholder="Valgfrit"></textarea>
         </label>
         <div class="modal-actions">
-          <button id="signupSaveSignupBtn" class="btn primary wide-btn" type="button">Gem</button>
+          <button id="signupSaveSignupBtn" class="btn primary wide-btn" type="button">Gem min tilmelding</button>
         </div>
         <p id="signupSaveStatus" class="signup-save-status" aria-live="polite"></p>
       </div>
@@ -431,6 +432,6 @@
   </dialog>
 
   <script src="gallery-config.js?v=1.5.0"></script>
-  <script src="app.js?v=1.5.0"></script>
+  <script src="app.js?v=1.6.3"></script>
 </body>
 </html>
