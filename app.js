@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.2';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -63,7 +63,7 @@ let ideasLoading = true;
 let initiativesLoading = true;
 let currentFilter = 'all';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwV-wtP2Ei4Qpqw2eWf9HU7DZlZClbAGLze19Lr6-I-M9zlNpqKIM8If-EjcmHdCTn3/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9YtJUhbhenGvwUzLL3qPZVUUqsGdQ5UyjF3hBMK1UcRzo3wtuZQhXHTpjcS99aZQ5/exec';
 
 function todayMidnight(){
   const d = new Date();
@@ -265,6 +265,7 @@ async function postToAppsScript(action, payload){
   }
 
   window.__appsScriptCache = {};
+  invalidateIdebankCache();
   return data;
 }
 
@@ -407,6 +408,119 @@ function pickArray(data, keys){
   return [];
 }
 
+const IDEBANK_CACHE_KEY = 'idebank-cache-v1';
+const IDEBANK_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+
+function readIdebankCache(){
+  try{
+    const raw = localStorage.getItem(IDEBANK_CACHE_KEY);
+    if(!raw) return null;
+
+    const cached = JSON.parse(raw);
+    const timestamp = Number(cached?.timestamp || 0);
+    const data = cached?.data;
+
+    if(!timestamp || !data || typeof data !== 'object'){
+      localStorage.removeItem(IDEBANK_CACHE_KEY);
+      return null;
+    }
+
+    const age = Math.max(0, Date.now() - timestamp);
+    return {
+      data,
+      timestamp,
+      age,
+      isFresh: age <= IDEBANK_CACHE_MAX_AGE_MS
+    };
+  }catch(err){
+    console.warn('Kunne ikke læse lokal idébank-cache:', err);
+    try{ localStorage.removeItem(IDEBANK_CACHE_KEY); }catch{}
+    return null;
+  }
+}
+
+function writeIdebankCache(data){
+  try{
+    localStorage.setItem(IDEBANK_CACHE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      data
+    }));
+  }catch(err){
+    console.warn('Kunne ikke gemme lokal idébank-cache:', err);
+  }
+}
+
+function invalidateIdebankCache(){
+  try{ localStorage.removeItem(IDEBANK_CACHE_KEY); }catch{}
+}
+
+function pickNamedListArray(data, keys, required=false){
+  const matchingKey = keys.find(key => Array.isArray(data?.[key]));
+  if(matchingKey) return pickArray(data, [matchingKey]);
+  if(required) throw new Error(`Apps Script list-svaret mangler: ${keys[0]}`);
+  return [];
+}
+
+function normalizeListResponse(data){
+  if(!data || typeof data !== 'object'){
+    throw new Error('Apps Script returnerede ikke et gyldigt list-svar.');
+  }
+
+  const initiativeRows = arrayRowsToObjects(
+    pickNamedListArray(data, ['initiatives','initiativer','Initiativer'], true)
+  );
+  const participantRows = arrayRowsToObjects(
+    pickNamedListArray(data, ['participants','deltagere','Deltagere'], true)
+  );
+  const ideaRows = arrayRowsToObjects(
+    pickNamedListArray(data, ['ideas','ideer','idéer','Forslag','forslag'], true)
+  );
+  const voteRows = arrayRowsToObjects(
+    pickNamedListArray(data, ['ideaVotes','ideVotes','stemmer','votes'])
+  );
+
+  return {
+    initiatives: normalizeInitiatives(initiativeRows),
+    participants: normalizeParticipants(participantRows),
+    ideas: normalizeIdeas(ideaRows),
+    ideaVotes: normalizeIdeaVotes(voteRows)
+  };
+}
+
+function applyListResponse(data){
+  const normalized = normalizeListResponse(data);
+
+  participants = normalized.participants;
+  ideas = normalized.ideas;
+  ideaVotes = normalized.ideaVotes;
+  initiativer = [...normalized.initiatives, ...plannedIdeasAsInitiatives()];
+
+  initiativesLoadedSuccessfully = true;
+  initiativesLoading = false;
+  ideasLoading = false;
+
+  renderInitiatives();
+  renderIdeaBank();
+}
+
+function clearSheetDataAfterLoadFailure(){
+  initiativer = [];
+  participants = [];
+  ideas = [];
+  ideaVotes = [];
+  initiativesLoadedSuccessfully = false;
+  initiativesLoading = false;
+  ideasLoading = false;
+  renderInitiatives();
+  renderIdeaBank();
+}
+
+async function loadAllSheetData(force=false){
+  const data = await fetchAppsScriptAction('list', force);
+  normalizeListResponse(data); // Afvis et defekt svar, før det gemmes eller vises.
+  return data;
+}
+
 async function fetchAppsScriptAction(action='list', force=false){
   const cacheKey = action || 'list';
   if(!window.__appsScriptCache) window.__appsScriptCache = {};
@@ -422,13 +536,16 @@ async function fetchAppsScriptAction(action='list', force=false){
   try{
     const url = new URL(APPS_SCRIPT_URL);
     if(action) url.searchParams.set('action', action);
-    url.searchParams.set('_', Date.now());
 
-    const res = await fetch(url.toString(), {
+    const fetchOptions = {
       method: 'GET',
-      cache: 'no-store',
       signal: controller.signal
-    });
+    };
+
+    // Et eksplicit force-kald skal gå til nettet, men normale læsninger må bruge browserens cache.
+    if(force) fetchOptions.cache = 'reload';
+
+    const res = await fetch(url.toString(), fetchOptions);
 
     if(!res.ok) throw new Error('Apps Script HTTP ' + res.status);
     const data = await res.json();
@@ -873,6 +990,11 @@ async function loadJson(path){
   return await res.json();
 }
 
+function hideLoadingScreen(delay=0){
+  if(!loadingScreen) return;
+  setTimeout(() => loadingScreen.classList.add('hidden'), delay);
+}
+
 async function init(){
   if(loadingScreen) loadingScreen.classList.remove('hidden');
 
@@ -889,35 +1011,53 @@ async function init(){
   SignupApp.init();
   GalleryApp.init({ load: false });
 
+  let cached = readIdebankCache();
+  let hasUsableData = false;
+  let deepLinkHandled = false;
+
+  if(cached?.isFresh){
+    try{
+      applyListResponse(cached.data);
+      hasUsableData = true;
+      hideLoadingScreen(50);
+      deepLinkHandled = openDeepLinkedContent();
+    }catch(err){
+      console.warn('Den lokale idébank-cache var ugyldig og blev fjernet:', err);
+      invalidateIdebankCache();
+      cached = null;
+    }
+  }
+
   try{
-    initiativer = await loadInitiativesFromSheet(true);
-    participants = await loadParticipantsFromSheet(true);
-    ideas = await loadIdeasFromSheet(true);
-    ideaVotes = await loadIdeaVotesFromSheet(true);
-    initiativer = [...initiativer, ...plannedIdeasAsInitiatives()];
-    initiativesLoadedSuccessfully = true;
-    initiativesLoading = false;
-    ideasLoading = false;
-    renderInitiatives();
-    renderIdeaBank();
+    const freshData = await loadAllSheetData(true);
+    applyListResponse(freshData);
+    writeIdebankCache(freshData);
+    hasUsableData = true;
   }catch(err){
     console.warn('Kunne ikke indlæse initiativdata:', err);
-    initiativer = [];
-    participants = [];
-    ideas = [];
-    ideaVotes = [];
-    initiativesLoadedSuccessfully = false;
-    initiativesLoading = false;
-    ideasLoading = false;
-    renderInitiatives();
-    renderIdeaBank();
+
+    // Ved netværksfejl bruges også en udløbet cache frem for at tømme appen.
+    if(!hasUsableData && cached){
+      try{
+        applyListResponse(cached.data);
+        hasUsableData = true;
+      }catch(cacheErr){
+        console.warn('Den udløbne idébank-cache kunne heller ikke bruges:', cacheErr);
+        invalidateIdebankCache();
+      }
+    }
+
+    if(!hasUsableData) clearSheetDataAfterLoadFailure();
   }
 
-  if(loadingScreen){
-    setTimeout(() => loadingScreen.classList.add('hidden'), 250);
-  }
+  hideLoadingScreen(hasUsableData ? 50 : 250);
 
   setTimeout(() => {
+    if(deepLinkHandled){
+      rememberCurrentContent();
+      return;
+    }
+
     if(!openDeepLinkedContent()) showNewContentPopup();
     else rememberCurrentContent();
   }, 350);
