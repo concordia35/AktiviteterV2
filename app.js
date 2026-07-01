@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.2';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -63,7 +63,42 @@ let ideasLoading = true;
 let initiativesLoading = true;
 let currentFilter = 'all';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwV-wtP2Ei4Qpqw2eWf9HU7DZlZClbAGLze19Lr6-I-M9zlNpqKIM8If-EjcmHdCTn3/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzivUCgohSlZRNIFGGsa9goS12lTksr7DMmShgC_bAlJODfmOlogCjj2X6eSeBsP8lY/exec';
+
+const SHEET_FETCH_TIMEOUT_MS = 6000;
+const LOCAL_CACHE_PREFIX = 'concordia-cache-';
+
+function cacheSet(key, value){
+  try{
+    localStorage.setItem(LOCAL_CACHE_PREFIX + key, JSON.stringify({ savedAt: Date.now(), value }));
+  }catch(err){
+    console.warn('Kunne ikke gemme cache:', key, err);
+  }
+}
+
+function cacheGet(key){
+  try{
+    const raw = localStorage.getItem(LOCAL_CACHE_PREFIX + key);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && Object.prototype.hasOwnProperty.call(parsed, 'value') ? parsed.value : parsed;
+  }catch(err){
+    console.warn('Kunne ikke læse cache:', key, err);
+    return null;
+  }
+}
+
+function fetchWithTimeout(url, options={}, timeoutMs=SHEET_FETCH_TIMEOUT_MS){
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeout));
+}
+
+function setSheetStatus(text){
+  const el = document.getElementById('sheetSyncStatus');
+  if(el) el.textContent = text;
+}
 
 function todayMidnight(){
   const d = new Date();
@@ -409,34 +444,43 @@ function pickArray(data, keys){
 
 async function fetchAppsScriptAction(action='list', force=false){
   const cacheKey = action || 'list';
+  const localKey = `apps-script-${cacheKey}`;
   if(!window.__appsScriptCache) window.__appsScriptCache = {};
+
   if(window.__appsScriptCache[cacheKey] && !force) return window.__appsScriptCache[cacheKey];
+  const cached = cacheGet(localKey);
+  if(cached && !force){
+    window.__appsScriptCache[cacheKey] = cached;
+    return cached;
+  }
 
   if(!APPS_SCRIPT_URL){
     throw new Error('Apps Script URL mangler i app.js');
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const url = new URL(APPS_SCRIPT_URL);
+  if(action) url.searchParams.set('action', action);
+  url.searchParams.set('_', Date.now());
 
   try{
-    const url = new URL(APPS_SCRIPT_URL);
-    if(action) url.searchParams.set('action', action);
-    url.searchParams.set('_', Date.now());
-
-    const res = await fetch(url.toString(), {
+    const res = await fetchWithTimeout(url.toString(), {
       method: 'GET',
-      cache: 'no-store',
-      signal: controller.signal
+      cache: 'no-store'
     });
 
     if(!res.ok) throw new Error('Apps Script HTTP ' + res.status);
     const data = await res.json();
     if(data && data.ok === false) throw new Error(data.error || 'Apps Script returnerede ok:false');
     window.__appsScriptCache[cacheKey] = data;
+    cacheSet(localKey, data);
     return data;
-  }finally{
-    clearTimeout(timeout);
+  }catch(err){
+    if(cached){
+      console.warn('Google Sheets svarede ikke hurtigt nok. Bruger cache for', cacheKey, err);
+      window.__appsScriptCache[cacheKey] = cached;
+      return cached;
+    }
+    throw err;
   }
 }
 
@@ -867,6 +911,65 @@ function openDeepLinkedContent(){
   return false;
 }
 
+
+function applyDynamicData(data){
+  const { nextInitiatives, nextParticipants, nextIdeas } = data;
+  initiativer = Array.isArray(nextInitiatives) ? nextInitiatives : [];
+  participants = Array.isArray(nextParticipants) ? nextParticipants : [];
+  ideas = Array.isArray(nextIdeas) ? nextIdeas : [];
+  ideaVotes = [];
+  initiativer = [...initiativer, ...plannedIdeasAsInitiatives()];
+  initiativesLoadedSuccessfully = true;
+  initiativesLoading = false;
+  ideasLoading = false;
+  renderInitiatives();
+  renderIdeaBank();
+}
+
+function dynamicDataFromCache(){
+  const list = cacheGet('apps-script-list');
+  const getInitiatives = cacheGet('apps-script-getInitiatives') || list;
+  const getParticipants = cacheGet('apps-script-getParticipants') || list;
+  const getIdeas = cacheGet('apps-script-getIdeas') || list;
+
+  if(!getInitiatives && !getParticipants && !getIdeas) return false;
+
+  try{
+    const initiativeRows = arrayRowsToObjects(pickArray(getInitiatives, ['initiatives','initiativer','Initiativer','items','data','rows']));
+    const participantRows = arrayRowsToObjects(pickArray(getParticipants, ['participants','deltagere','Deltagere','items','data','rows']));
+    const ideaRows = arrayRowsToObjects(pickArray(getIdeas, ['ideas','ideer','idéer','Forslag','forslag','items','data','rows']));
+    applyDynamicData({
+      nextInitiatives: normalizeInitiatives(initiativeRows),
+      nextParticipants: normalizeParticipants(participantRows),
+      nextIdeas: normalizeIdeas(ideaRows)
+    });
+    setSheetStatus('Viser seneste gemte data. Opdaterer i baggrunden…');
+    return true;
+  }catch(err){
+    console.warn('Kunne ikke bruge gemt dynamisk data:', err);
+    return false;
+  }
+}
+
+async function refreshDynamicData(){
+  try{
+    const [nextInitiatives, nextParticipants, nextIdeas] = await Promise.all([
+      loadInitiativesFromSheet(true),
+      loadParticipantsFromSheet(true),
+      loadIdeasFromSheet(true)
+    ]);
+    applyDynamicData({ nextInitiatives, nextParticipants, nextIdeas });
+    setSheetStatus('Opdateret fra Google Sheets.');
+  }catch(err){
+    console.warn('Kunne ikke opdatere dynamisk data:', err);
+    initiativesLoading = false;
+    ideasLoading = false;
+    renderInitiatives();
+    renderIdeaBank();
+    setSheetStatus('Google Sheets svarede ikke. Viser seneste gemte data.');
+  }
+}
+
 async function loadJson(path){
   const res = await fetch(`${path}?v=${encodeURIComponent(APP_VERSION)}`, { cache: 'no-store' });
   if(!res.ok) throw new Error(path);
@@ -881,46 +984,29 @@ async function init(){
     if(!Array.isArray(events)) events = [];
   }catch(err){
     console.error('Kunne ikke indlæse events.json:', err);
-    events = [];
-    if(nextEvent) nextEvent.innerHTML = `<div class="empty">Kunne ikke indlæse events.json.</div>`;
+    events = cacheGet('events-json') || [];
+    if(nextEvent && !events.length) nextEvent.innerHTML = `<div class="empty">Kunne ikke indlæse events.json.</div>`;
+  }
+  cacheSet('events-json', events);
+
+  const hadDynamicCache = dynamicDataFromCache();
+  if(!hadDynamicCache){
+    initiativesLoading = true;
+    ideasLoading = true;
   }
 
   renderAll();
   SignupApp.init();
   GalleryApp.init({ load: false });
 
-  try{
-    initiativer = await loadInitiativesFromSheet(true);
-    participants = await loadParticipantsFromSheet(true);
-    ideas = await loadIdeasFromSheet(true);
-    ideaVotes = await loadIdeaVotesFromSheet(true);
-    initiativer = [...initiativer, ...plannedIdeasAsInitiatives()];
-    initiativesLoadedSuccessfully = true;
-    initiativesLoading = false;
-    ideasLoading = false;
-    renderInitiatives();
-    renderIdeaBank();
-  }catch(err){
-    console.warn('Kunne ikke indlæse initiativdata:', err);
-    initiativer = [];
-    participants = [];
-    ideas = [];
-    ideaVotes = [];
-    initiativesLoadedSuccessfully = false;
-    initiativesLoading = false;
-    ideasLoading = false;
-    renderInitiatives();
-    renderIdeaBank();
-  }
-
   if(loadingScreen){
     setTimeout(() => loadingScreen.classList.add('hidden'), 250);
   }
 
-  setTimeout(() => {
+  refreshDynamicData().then(() => {
     if(!openDeepLinkedContent()) showNewContentPopup();
     else rememberCurrentContent();
-  }, 350);
+  });
 }
 
 if(filterSelect) filterSelect.addEventListener('change', e => {
@@ -1219,27 +1305,48 @@ const SignupApp = (() => {
       return;
     }
 
-    try {
-      els.syncStatus.textContent = 'Henter fra Google Sheet…';
-      const res = await fetch(`${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=list&t=${Date.now()}`, { cache: 'no-store' });
-      const data = await res.json();
+    const cacheKey = 'signup-list';
+    const applyData = data => {
       state.members = normalizeMembers(data.members);
       state.rows = normalizeRows(data.rows || data.signups || []);
       state.events = getUpcomingEvents(normalizeEvents(data.events || []));
       mergeCurrentUserRows();
+      renderMembers();
+      render();
+      openPendingDeepLink();
+    };
+
+    const cached = cacheGet(cacheKey);
+    if(cached){
+      applyData(cached);
+      els.syncStatus.textContent = 'Viser seneste gemte tilmelding. Opdaterer…';
+    }else{
+      state.members = fallbackMembers();
+      renderMembers();
+      render();
+      els.syncStatus.textContent = 'Henter fra Google Sheet…';
+    }
+
+    try {
+      const res = await fetchWithTimeout(`${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=list&t=${Date.now()}`, { cache: 'no-store' }, SHEET_FETCH_TIMEOUT_MS);
+      const data = await res.json();
+      cacheSet(cacheKey, data);
+      applyData(data);
       els.syncStatus.textContent = 'Koblet på Google Sheet.';
     } catch (err) {
       console.warn('Kunne ikke hente tilmeldingsdata', err);
-      state.members = fallbackMembers();
-      state.rows = [];
-      state.signups = {};
-      state.events = [];
-      els.syncStatus.textContent = 'Kunne ikke hente fra Google Sheet.';
+      if(cached){
+        els.syncStatus.textContent = 'Google Sheet svarede ikke. Viser seneste gemte tilmelding.';
+      }else{
+        state.members = fallbackMembers();
+        state.rows = [];
+        state.signups = {};
+        state.events = [];
+        els.syncStatus.textContent = 'Kunne ikke hente fra Google Sheet.';
+        renderMembers();
+        render();
+      }
     }
-
-    renderMembers();
-    render();
-    openPendingDeepLink();
   }
 
   function renderMembers() {
