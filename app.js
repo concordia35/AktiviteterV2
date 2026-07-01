@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.5';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -63,7 +63,7 @@ let ideasLoading = true;
 let initiativesLoading = true;
 let currentFilter = 'all';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwV-wtP2Ei4Qpqw2eWf9HU7DZlZClbAGLze19Lr6-I-M9zlNpqKIM8If-EjcmHdCTn3/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzivUCgohSlZRNIFGGsa9goS12lTksr7DMmShgC_bAlJODfmOlogCjj2X6eSeBsP8lY/exec';
 
 function todayMidnight(){
   const d = new Date();
@@ -704,6 +704,142 @@ function renderAll(){
   renderIdeaBank();
 }
 
+/*
+  Fase 1 optimering:
+  - Appen må ikke vente på Google Sheets før den kan bruges.
+  - Seneste kendte data gemmes lokalt og vises straks.
+  - Friske data hentes bagefter og erstatter cache, når de er klar.
+  - Hver datakilde gemmes separat, så Idébank aldrig kan blive blandet med Initiativer.
+*/
+const LOCAL_DATA_PREFIX = 'concordia-activity-cache-';
+const LOCAL_DATA_TTL_MS = 1000 * 60 * 60 * 24 * 14;
+const SHEET_BACKGROUND_TIMEOUT_MS = 12000;
+
+function cacheKey(name){
+  return `${LOCAL_DATA_PREFIX}${name}-v1`;
+}
+
+function readLocalData(name){
+  try{
+    const raw = localStorage.getItem(cacheKey(name));
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(!parsed || !Array.isArray(parsed.value)) return null;
+    if(parsed.savedAt && Date.now() - parsed.savedAt > LOCAL_DATA_TTL_MS) return null;
+    return parsed.value;
+  }catch(err){
+    console.warn('Kunne ikke læse lokal cache:', name, err);
+    return null;
+  }
+}
+
+function writeLocalData(name, value){
+  if(!Array.isArray(value)) return;
+  try{
+    localStorage.setItem(cacheKey(name), JSON.stringify({
+      savedAt: Date.now(),
+      value
+    }));
+  }catch(err){
+    console.warn('Kunne ikke gemme lokal cache:', name, err);
+  }
+}
+
+function applyCachedSheetData(){
+  const cachedInitiatives = readLocalData('initiatives');
+  const cachedParticipants = readLocalData('participants');
+  const cachedIdeas = readLocalData('ideas');
+
+  if(cachedInitiatives){
+    initiativer = cachedInitiatives;
+    initiativesLoadedSuccessfully = true;
+    initiativesLoading = false;
+  }
+
+  if(cachedParticipants){
+    participants = cachedParticipants;
+  }
+
+  if(cachedIdeas){
+    ideas = cachedIdeas;
+    ideasLoading = false;
+  }
+
+  if(cachedInitiatives || cachedParticipants || cachedIdeas){
+    const planned = plannedIdeasAsInitiatives();
+    const plannedIds = new Set(planned.map(item => item.id));
+    initiativer = [...initiativer.filter(item => !plannedIds.has(item.id)), ...planned];
+    renderInitiatives();
+    renderIdeaBank();
+  }
+}
+
+function withTimeout(promise, ms, label){
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label || 'Hentning'} tog for lang tid`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function refreshSheetDataInBackground(){
+  const results = await Promise.allSettled([
+    withTimeout(loadInitiativesFromSheet(true), SHEET_BACKGROUND_TIMEOUT_MS, 'Initiativer'),
+    withTimeout(loadParticipantsFromSheet(true), SHEET_BACKGROUND_TIMEOUT_MS, 'Deltagere'),
+    withTimeout(loadIdeasFromSheet(true), SHEET_BACKGROUND_TIMEOUT_MS, 'Idébank')
+  ]);
+
+  let changed = false;
+
+  if(results[0].status === 'fulfilled' && Array.isArray(results[0].value)){
+    initiativer = results[0].value;
+    initiativesLoadedSuccessfully = true;
+    initiativesLoading = false;
+    writeLocalData('initiatives', initiativer);
+    changed = true;
+  }else{
+    console.warn('Kunne ikke hente friske initiativer:', results[0].reason);
+    initiativesLoading = false;
+  }
+
+  if(results[1].status === 'fulfilled' && Array.isArray(results[1].value)){
+    participants = results[1].value;
+    writeLocalData('participants', participants);
+    changed = true;
+  }else{
+    console.warn('Kunne ikke hente friske deltagere:', results[1].reason);
+  }
+
+  if(results[2].status === 'fulfilled' && Array.isArray(results[2].value)){
+    ideas = results[2].value;
+    ideasLoading = false;
+    writeLocalData('ideas', ideas);
+    changed = true;
+  }else{
+    console.warn('Kunne ikke hente frisk idébank:', results[2].reason);
+    ideasLoading = false;
+  }
+
+  const planned = plannedIdeasAsInitiatives();
+  const plannedIds = new Set(planned.map(item => item.id));
+  initiativer = [...initiativer.filter(item => !plannedIds.has(item.id)), ...planned];
+
+  renderInitiatives();
+  renderIdeaBank();
+
+  if(changed){
+    setTimeout(() => {
+      if(!openDeepLinkedContent()) showNewContentPopup();
+      else rememberCurrentContent();
+    }, 350);
+  }
+}
+
+function hideInitialLoadingSoon(){
+  if(!loadingScreen) return;
+  setTimeout(() => loadingScreen.classList.add('hidden'), 250);
+}
+
 const SEEN_EVENTS_KEY = 'concordia-seen-event-ids-v1';
 const SEEN_INITIATIVES_KEY = 'concordia-seen-initiative-ids-v1';
 let pendingNewItems = [];
@@ -885,42 +1021,24 @@ async function init(){
     if(nextEvent) nextEvent.innerHTML = `<div class="empty">Kunne ikke indlæse events.json.</div>`;
   }
 
+  // Vis appen med det samme. Google Sheets må ikke blokere åbning af appen.
   renderAll();
+  applyCachedSheetData();
+  hideInitialLoadingSoon();
+
   SignupApp.init();
   GalleryApp.init({ load: false });
 
-  try{
-    initiativer = await loadInitiativesFromSheet(true);
-    participants = await loadParticipantsFromSheet(true);
-    ideas = await loadIdeasFromSheet(true);
-    ideaVotes = await loadIdeaVotesFromSheet(true);
-    initiativer = [...initiativer, ...plannedIdeasAsInitiatives()];
-    initiativesLoadedSuccessfully = true;
+  refreshSheetDataInBackground().catch(err => {
+    console.warn('Baggrundshentning fejlede:', err);
     initiativesLoading = false;
     ideasLoading = false;
     renderInitiatives();
     renderIdeaBank();
-  }catch(err){
-    console.warn('Kunne ikke indlæse initiativdata:', err);
-    initiativer = [];
-    participants = [];
-    ideas = [];
-    ideaVotes = [];
-    initiativesLoadedSuccessfully = false;
-    initiativesLoading = false;
-    ideasLoading = false;
-    renderInitiatives();
-    renderIdeaBank();
-  }
+  });
 
-  if(loadingScreen){
-    setTimeout(() => loadingScreen.classList.add('hidden'), 250);
-  }
-
-  setTimeout(() => {
-    if(!openDeepLinkedContent()) showNewContentPopup();
-    else rememberCurrentContent();
-  }, 350);
+  // Hvis der ikke findes lokal cache, vises popup først når baggrundsdata er hentet.
+  // Hvis der findes cache, håndterer refreshSheetDataInBackground nye opslag efter opdatering.
 }
 
 if(filterSelect) filterSelect.addEventListener('change', e => {
