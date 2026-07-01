@@ -1,9 +1,4 @@
-try{
-  Object.keys(localStorage || {}).forEach(key => {
-    if(String(key).startsWith('concordia-activity-cache-')) localStorage.removeItem(key);
-  });
-}catch(e){}
-const APP_VERSION = '1.6.6';
+const APP_VERSION = '1.6.1';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -68,7 +63,7 @@ let ideasLoading = true;
 let initiativesLoading = true;
 let currentFilter = 'all';
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzivUCgohSlZRNIFGGsa9goS12lTksr7DMmShgC_bAlJODfmOlogCjj2X6eSeBsP8lY/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwV-wtP2Ei4Qpqw2eWf9HU7DZlZClbAGLze19Lr6-I-M9zlNpqKIM8If-EjcmHdCTn3/exec';
 
 function todayMidnight(){
   const d = new Date();
