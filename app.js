@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.4';
+const APP_VERSION = '1.6.5';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1062,6 +1062,10 @@ async function init(){
 
   hideLoadingScreen(hasUsableData ? 50 : 250);
 
+  // Hent galleriet diskret efter resten af appen, så det oftest er klart,
+  // inden brugeren åbner fanen. En lokal cache gør efterfølgende åbninger straks-klare.
+  setTimeout(() => GalleryApp.loadGallery(), 900);
+
   setTimeout(() => {
     if(deepLinkHandled){
       rememberCurrentContent();
@@ -2004,6 +2008,9 @@ const SignupApp = (() => {
 
 
 const GalleryApp = (() => {
+  const CACHE_KEY = 'concordia_gallery_cache_v1';
+  const CACHE_MAX_AGE = 15 * 60 * 1000;
+
   const config = Object.assign({
     appsScriptUrl: '',
     maxImageDimension: 1800,
@@ -2015,7 +2022,14 @@ const GalleryApp = (() => {
     loaded: false,
     loading: false,
     images: [],
-    activeFolder: ''
+    activeFolder: '',
+    cacheChecked: false,
+    cacheFound: false,
+    cachedAt: 0,
+    remoteChecked: false,
+    currentImageIndex: -1,
+    touchStartX: 0,
+    touchStartY: 0
   };
 
   const els = {};
@@ -2037,6 +2051,8 @@ const GalleryApp = (() => {
     els.progressBar = els.progress?.querySelector('span');
     els.imageModal = $('#galleryImageModal');
     els.imageCloseBtn = $('#galleryImageCloseBtn');
+    els.imagePrevBtn = $('#galleryImagePrevBtn');
+    els.imageNextBtn = $('#galleryImageNextBtn');
     els.largeImage = $('#galleryLargeImage');
     els.largeCaption = $('#galleryLargeCaption');
   }
@@ -2048,10 +2064,11 @@ const GalleryApp = (() => {
       bind();
       restoreName();
       populateActivityOptions();
+      restoreGalleryCache();
       state.initialized = true;
       render();
     }
-    if(options.load !== false && !state.loaded && !state.loading) loadGallery();
+    if(options.load !== false && !state.loading && !state.remoteChecked) loadGallery();
   }
 
   function bind(){
@@ -2060,9 +2077,15 @@ const GalleryApp = (() => {
     els.fileInput?.addEventListener('change', updateSelectedFiles);
     els.uploadForm?.addEventListener('submit', uploadImages);
     els.imageCloseBtn?.addEventListener('click', closeLargeImage);
+    els.imagePrevBtn?.addEventListener('click', () => showAdjacentImage(-1));
+    els.imageNextBtn?.addEventListener('click', () => showAdjacentImage(1));
     els.imageModal?.addEventListener('click', event => {
       if(event.target === els.imageModal) closeLargeImage();
     });
+    els.imageModal?.addEventListener('touchstart', handleImageTouchStart, { passive: true });
+    els.imageModal?.addEventListener('touchend', handleImageTouchEnd, { passive: true });
+    els.largeImage?.addEventListener('load', preloadAdjacentImages);
+    document.addEventListener('keydown', handleGalleryKeydown);
   }
 
   function isConfigured(){
@@ -2120,6 +2143,56 @@ const GalleryApp = (() => {
     els.uploadModal.showModal();
   }
 
+  function restoreGalleryCache(){
+    if(state.cacheChecked) return state.cacheFound;
+    state.cacheChecked = true;
+
+    try{
+      const raw = localStorage.getItem(CACHE_KEY);
+      if(!raw) return false;
+      const cached = JSON.parse(raw);
+      if(!cached || !Array.isArray(cached.images)) throw new Error('Ugyldig cache');
+      state.images = cached.images;
+      state.cachedAt = Number(cached.savedAt || 0);
+      state.cacheFound = true;
+      state.loaded = true;
+      setGallerySummary();
+      return true;
+    }catch(error){
+      console.warn('Galleri-cachen kunne ikke bruges:', error);
+      try{ localStorage.removeItem(CACHE_KEY); }catch{}
+      state.cacheFound = false;
+      return false;
+    }
+  }
+
+  function writeGalleryCache(images){
+    try{
+      const savedAt = Date.now();
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt, images }));
+      state.cacheFound = true;
+      state.cachedAt = savedAt;
+    }catch(error){
+      console.warn('Kunne ikke gemme galleriet lokalt:', error);
+    }
+  }
+
+  function isGalleryCacheFresh(){
+    return state.cacheFound && state.cachedAt > 0 && Date.now() - state.cachedAt < CACHE_MAX_AGE;
+  }
+
+  function gallerySummary(){
+    const folderCount = new Set(state.images.map(image => image.event || 'Andet')).size;
+    return state.images.length
+      ? `${state.images.length} ${state.images.length === 1 ? 'billede' : 'billeder'} fordelt på ${folderCount} ${folderCount === 1 ? 'aktivitet' : 'aktiviteter'}.`
+      : 'Der er endnu ingen godkendte billeder.';
+  }
+
+  function setGallerySummary(suffix = ''){
+    if(!els.syncStatus) return;
+    els.syncStatus.textContent = `${gallerySummary()}${suffix ? ` ${suffix}` : ''}`;
+  }
+
   async function loadGallery(force = false){
     if(!state.initialized) init({ load: false });
     if(!isConfigured()){
@@ -2129,10 +2202,22 @@ const GalleryApp = (() => {
       render();
       return;
     }
-    if(state.loading || (state.loaded && !force)) return;
+    restoreGalleryCache();
+    if(state.loading || (state.remoteChecked && !force)) return;
+
+    if(!force && isGalleryCacheFresh()){
+      state.remoteChecked = true;
+      setGallerySummary();
+      render();
+      return;
+    }
 
     state.loading = true;
-    els.syncStatus.textContent = 'Henter billeder…';
+    if(state.cacheFound){
+      setGallerySummary('Opdaterer i baggrunden…');
+    }else{
+      els.syncStatus.textContent = 'Henter billeder…';
+    }
     render();
 
     try{
@@ -2145,14 +2230,17 @@ const GalleryApp = (() => {
       if(data.ok === false) throw new Error(data.error || 'Ukendt fejl');
       state.images = Array.isArray(data.images) ? data.images : [];
       state.loaded = true;
-      const folderCount = new Set(state.images.map(image => image.event || 'Andet')).size;
-      els.syncStatus.textContent = state.images.length
-        ? `${state.images.length} ${state.images.length === 1 ? 'billede' : 'billeder'} fordelt på ${folderCount} ${folderCount === 1 ? 'aktivitet' : 'aktiviteter'}.`
-        : 'Der er endnu ingen godkendte billeder.';
+      state.remoteChecked = true;
+      writeGalleryCache(state.images);
+      setGallerySummary();
     }catch(error){
       console.error('Kunne ikke hente galleri', error);
-      state.images = [];
-      els.syncStatus.textContent = 'Kunne ikke hente galleriet.';
+      if(state.cacheFound){
+        setGallerySummary('Viser den senest gemte version.');
+      }else{
+        state.images = [];
+        els.syncStatus.textContent = 'Kunne ikke hente galleriet.';
+      }
     }finally{
       state.loading = false;
       render();
@@ -2161,7 +2249,7 @@ const GalleryApp = (() => {
 
   function render(){
     if(!els.grid) return;
-    if(state.loading){
+    if(state.loading && !state.cacheFound){
       els.grid.className = 'gallery-grid';
       els.grid.innerHTML = '<div class="gallery-loading"><div class="loading-spinner" aria-hidden="true"></div><span>Henter galleri…</span></div>';
       return;
@@ -2183,7 +2271,7 @@ const GalleryApp = (() => {
         return `
           <button class="gallery-folder-card" type="button" data-gallery-folder="${escapeAttr(name)}" aria-label="Åbn mappen ${escapeAttr(name)}">
             <div class="gallery-folder-cover">
-              <img src="${escapeAttr(cover.thumbnailUrl || cover.url || '')}" alt="" loading="lazy">
+              <img src="${escapeAttr(cover.thumbnailUrl || cover.url || '')}" alt="" loading="lazy" decoding="async" fetchpriority="low">
               <span class="gallery-folder-icon" aria-hidden="true">▰</span>
             </div>
             <div class="gallery-folder-info">
@@ -2219,7 +2307,7 @@ const GalleryApp = (() => {
         const meta = [image.uploader ? `Foto: ${image.uploader}` : '', formatDate(image.date)].filter(Boolean).join(' · ');
         return `
           <button class="gallery-card" type="button" data-gallery-index="${imageIndex}" aria-label="Åbn ${escapeAttr(title)}">
-            <img src="${escapeAttr(image.thumbnailUrl || image.url || '')}" alt="${escapeAttr(title)}" loading="lazy">
+            <img src="${escapeAttr(image.thumbnailUrl || image.url || '')}" alt="${escapeAttr(title)}" loading="lazy" decoding="async" fetchpriority="low">
             ${meta ? `<span>${escapeHtml(meta)}</span>` : ''}
           </button>`;
       }).join('')}`;
@@ -2250,18 +2338,100 @@ const GalleryApp = (() => {
   function openLargeImage(index){
     const image = state.images[index];
     if(!image || !els.imageModal) return;
+    state.currentImageIndex = index;
+    showCurrentLargeImage();
+    if(!els.imageModal.open) els.imageModal.showModal();
+  }
+
+  function showCurrentLargeImage(){
+    const image = state.images[state.currentImageIndex];
+    if(!image || !els.imageModal) return;
     const title = image.event || image.caption || 'Billede fra Concordia';
     const details = [image.event, image.uploader ? `Foto: ${image.uploader}` : '', formatDate(image.date)].filter(Boolean).join(' · ');
+    const indexes = getActiveFolderIndexes();
+    const position = indexes.indexOf(state.currentImageIndex);
+    const counter = indexes.length > 1 && position >= 0 ? `${position + 1} af ${indexes.length}` : '';
     els.largeImage.src = image.url || image.thumbnailUrl || '';
     els.largeImage.alt = title;
-    els.largeCaption.textContent = details || title;
-    els.imageModal.showModal();
+    els.largeCaption.textContent = [details || title, counter].filter(Boolean).join(' · ');
+    const showNavigation = indexes.length > 1;
+    if(els.imagePrevBtn) els.imagePrevBtn.hidden = !showNavigation;
+    if(els.imageNextBtn) els.imageNextBtn.hidden = !showNavigation;
+  }
+
+  function normalizedFolderName(image){
+    return String(image?.event || 'Andet').trim() || 'Andet';
+  }
+
+  function getActiveFolderIndexes(){
+    const current = state.images[state.currentImageIndex];
+    const folderName = state.activeFolder || normalizedFolderName(current);
+    return state.images.reduce((indexes, image, index) => {
+      if(normalizedFolderName(image) === folderName) indexes.push(index);
+      return indexes;
+    }, []);
+  }
+
+  function showAdjacentImage(direction){
+    if(!els.imageModal?.open || state.currentImageIndex < 0) return;
+    const indexes = getActiveFolderIndexes();
+    if(indexes.length < 2) return;
+    const currentPosition = Math.max(0, indexes.indexOf(state.currentImageIndex));
+    const nextPosition = (currentPosition + direction + indexes.length) % indexes.length;
+    state.currentImageIndex = indexes[nextPosition];
+    showCurrentLargeImage();
+  }
+
+  function preloadAdjacentImages(){
+    if(!els.imageModal?.open) return;
+    const indexes = getActiveFolderIndexes();
+    if(indexes.length < 2) return;
+    const currentPosition = indexes.indexOf(state.currentImageIndex);
+    [-1, 1].forEach(direction => {
+      const adjacentIndex = indexes[(currentPosition + direction + indexes.length) % indexes.length];
+      const adjacent = state.images[adjacentIndex];
+      const src = adjacent?.url || adjacent?.thumbnailUrl || '';
+      if(src){
+        const preload = new Image();
+        preload.decoding = 'async';
+        preload.src = src;
+      }
+    });
+  }
+
+  function handleGalleryKeydown(event){
+    if(!els.imageModal?.open) return;
+    if(event.key === 'ArrowLeft'){
+      event.preventDefault();
+      showAdjacentImage(-1);
+    }else if(event.key === 'ArrowRight'){
+      event.preventDefault();
+      showAdjacentImage(1);
+    }
+  }
+
+  function handleImageTouchStart(event){
+    const touch = event.touches?.[0];
+    if(!touch) return;
+    state.touchStartX = touch.clientX;
+    state.touchStartY = touch.clientY;
+  }
+
+  function handleImageTouchEnd(event){
+    const touch = event.changedTouches?.[0];
+    if(!touch) return;
+    const deltaX = touch.clientX - state.touchStartX;
+    const deltaY = touch.clientY - state.touchStartY;
+    state.touchStartX = 0;
+    state.touchStartY = 0;
+    if(Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+    showAdjacentImage(deltaX < 0 ? 1 : -1);
   }
 
   function closeLargeImage(){
     if(!els.imageModal) return;
     els.imageModal.close();
-    els.largeImage.removeAttribute('src');
+    state.currentImageIndex = -1;
   }
 
   function updateSelectedFiles(){
