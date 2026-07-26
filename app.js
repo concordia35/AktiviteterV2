@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.5';
+const APP_VERSION = '1.6.6';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -2013,8 +2013,12 @@ const GalleryApp = (() => {
 
   const config = Object.assign({
     appsScriptUrl: '',
-    maxImageDimension: 1800,
-    jpegQuality: 0.82
+    maxImageDimension: 1500,
+    jpegQuality: 0.75,
+    uploadConcurrency: 2,
+    confirmationAttempts: 5,
+    confirmationInitialDelay: 300,
+    confirmationRetryDelay: 500
   }, window.CONCORDIA_GALLERY_CONFIG || {});
 
   const state = {
@@ -2481,24 +2485,48 @@ const GalleryApp = (() => {
     setProgress(0);
 
     try{
-      for(let i = 0; i < files.length; i++){
-        els.uploadStatus.textContent = `Klargør billede ${i + 1} af ${files.length}…`;
-        const prepared = await prepareImage(files[i]);
-        els.uploadStatus.textContent = `Uploader billede ${i + 1} af ${files.length}…`;
-        await postImage({
-          batchId,
-          index: i + 1,
-          total: files.length,
-          uploader,
-          event: eventName,
-          filename: prepared.filename,
-          mimeType: prepared.mimeType,
-          data: prepared.base64
-        });
-        setProgress(((i + 1) / files.length) * 90);
-      }
+      const concurrency = Math.min(files.length, Math.max(1, Math.min(3, Number(config.uploadConcurrency) || 2)));
+      let nextIndex = 0;
+      let completed = 0;
+      let cancelled = false;
 
-      els.uploadStatus.textContent = 'Kontrollerer upload…';
+      const updateUploadStatus = () => {
+        els.uploadStatus.textContent = `Klargør og sender billeder… ${completed} af ${files.length} sendt`;
+        setProgress(4 + (completed / files.length) * 90);
+      };
+
+      updateUploadStatus();
+
+      const uploadWorker = async () => {
+        while(!cancelled){
+          const index = nextIndex++;
+          if(index >= files.length) return;
+
+          try{
+            const prepared = await prepareImage(files[index]);
+            await postImage({
+              batchId,
+              index: index + 1,
+              total: files.length,
+              uploader,
+              event: eventName,
+              filename: prepared.filename,
+              mimeType: prepared.mimeType,
+              data: prepared.base64
+            });
+            completed += 1;
+            updateUploadStatus();
+          }catch(error){
+            cancelled = true;
+            throw error;
+          }
+        }
+      };
+
+      await Promise.all(Array.from({ length: concurrency }, () => uploadWorker()));
+
+      els.uploadStatus.textContent = `${completed} af ${files.length} billeder sendt · kontrollerer upload…`;
+      setProgress(96);
       const confirmed = await waitForConfirmation(batchId, files.length);
       setProgress(100);
       els.uploadStatus.textContent = confirmed
@@ -2521,7 +2549,7 @@ const GalleryApp = (() => {
 
   async function prepareImage(file){
     const bitmap = await loadBitmap(file);
-    const maxDimension = Math.max(800, Number(config.maxImageDimension) || 1800);
+    const maxDimension = Math.max(800, Number(config.maxImageDimension) || 1500);
     const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
     const width = Math.max(1, Math.round(bitmap.width * scale));
     const height = Math.max(1, Math.round(bitmap.height * scale));
@@ -2535,7 +2563,7 @@ const GalleryApp = (() => {
     if(typeof bitmap.close === 'function') bitmap.close();
 
     const blob = await new Promise((resolve, reject) => {
-      canvas.toBlob(value => value ? resolve(value) : reject(new Error('Billedet kunne ikke komprimeres.')), 'image/jpeg', Number(config.jpegQuality) || 0.82);
+      canvas.toBlob(value => value ? resolve(value) : reject(new Error('Billedet kunne ikke komprimeres.')), 'image/jpeg', Number(config.jpegQuality) || 0.75);
     });
     const base64 = await blobToBase64(blob);
     const stem = String(file.name || 'billede').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9æøåÆØÅ _-]+/g, '').trim() || 'billede';
@@ -2586,8 +2614,12 @@ const GalleryApp = (() => {
   }
 
   async function waitForConfirmation(batchId, expected){
-    for(let attempt = 0; attempt < 8; attempt++){
-      await sleep(attempt === 0 ? 500 : 900);
+    const attempts = Math.max(1, Number(config.confirmationAttempts) || 5);
+    const initialDelay = Math.max(100, Number(config.confirmationInitialDelay) || 300);
+    const retryDelay = Math.max(250, Number(config.confirmationRetryDelay) || 500);
+
+    for(let attempt = 0; attempt < attempts; attempt++){
+      await sleep(attempt === 0 ? initialDelay : retryDelay);
       try{
         const url = new URL(config.appsScriptUrl);
         url.searchParams.set('action', 'uploadStatus');
