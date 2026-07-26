@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.6';
+const APP_VERSION = '1.6.7';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -848,6 +848,10 @@ function getDeepLinkedSignupId(){
   return new URLSearchParams(window.location.search).get('tilmelding');
 }
 
+function getDeepLinkedGalleryName(){
+  return new URLSearchParams(window.location.search).get('gallery');
+}
+
 function readSeenIds(key){
   try{
     const stored = localStorage.getItem(key);
@@ -889,7 +893,7 @@ function newContentSinceLastVisit(){
 }
 
 function showNewContentPopup(){
-  if(!newActivityModal || getDeepLinkedEventId() || getDeepLinkedInitiativeId() || getDeepLinkedSignupId()){
+  if(!newActivityModal || getDeepLinkedEventId() || getDeepLinkedInitiativeId() || getDeepLinkedSignupId() || getDeepLinkedGalleryName()){
     rememberCurrentContent();
     return;
   }
@@ -975,6 +979,12 @@ function openDeepLinkedContent(){
   if(signupId){
     activateView('loge');
     SignupApp.openDeepLinkedEvent(signupId);
+    return true;
+  }
+
+  const galleryName = getDeepLinkedGalleryName();
+  if(galleryName){
+    activateView('gallery');
     return true;
   }
 
@@ -2033,7 +2043,9 @@ const GalleryApp = (() => {
     remoteChecked: false,
     currentImageIndex: -1,
     touchStartX: 0,
-    touchStartY: 0
+    touchStartY: 0,
+    requestedFolder: new URLSearchParams(window.location.search).get('gallery') || '',
+    forceRefreshOnOpen: Boolean(new URLSearchParams(window.location.search).get('gallery'))
   };
 
   const els = {};
@@ -2072,7 +2084,11 @@ const GalleryApp = (() => {
       state.initialized = true;
       render();
     }
-    if(options.load !== false && !state.loading && !state.remoteChecked) loadGallery();
+    const forceFreshGallery = state.forceRefreshOnOpen;
+    if(options.load !== false && !state.loading && (!state.remoteChecked || forceFreshGallery)){
+      state.forceRefreshOnOpen = false;
+      loadGallery(forceFreshGallery);
+    }
   }
 
   function bind(){
@@ -2265,6 +2281,7 @@ const GalleryApp = (() => {
     }
 
     const folders = groupByActivity(state.images);
+    applyRequestedFolder(folders);
 
     if(!state.activeFolder || !folders.has(state.activeFolder)){
       state.activeFolder = '';
@@ -2323,6 +2340,19 @@ const GalleryApp = (() => {
     els.grid.querySelectorAll('[data-gallery-index]').forEach(button => {
       button.addEventListener('click', () => openLargeImage(Number(button.dataset.galleryIndex)));
     });
+  }
+
+  function normalizeFolderKey(value){
+    return String(value || '').trim().toLocaleLowerCase('da-DK');
+  }
+
+  function applyRequestedFolder(folders){
+    if(!state.requestedFolder || !folders.size) return;
+    const wanted = normalizeFolderKey(state.requestedFolder);
+    const match = [...folders.keys()].find(name => normalizeFolderKey(name) === wanted);
+    if(!match) return;
+    state.activeFolder = match;
+    state.requestedFolder = '';
   }
 
   function groupByActivity(images){
@@ -2757,13 +2787,13 @@ const NotificationManager = (() => {
         notificationToggleBtn.classList.remove('primary');
         notificationToggleBtn.classList.add('soft');
       }
-      setHelp('Du får besked om nye aktiviteter, nye godkendte forslag og tilmeldingsfrister til logeaftener.');
+      setHelp('Du får besked om nye aktiviteter, nye godkendte forslag, nye billeder og tilmeldingsfrister til logeaftener.');
       return;
     }
 
     const dismissed = localStorage.getItem(DISMISSED_KEY) === '1';
     setPromptVisible(!dismissed);
-    if(notificationPromptText) notificationPromptText.textContent = 'Slå beskeder til, så du får besked om nye aktiviteter, forslag og tilmeldingsfrister.';
+    if(notificationPromptText) notificationPromptText.textContent = 'Slå beskeder til, så du får besked om nye aktiviteter, forslag, billeder og tilmeldingsfrister.';
     if(notificationPromptBtn) notificationPromptBtn.textContent = state.permission ? 'Slå til igen' : 'Slå til';
     if(notificationStatusText) notificationStatusText.textContent = state.permission
       ? 'Tilladelsen er givet, men abonnementet er slået fra.'

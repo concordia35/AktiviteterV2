@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Concordia" />
   <title>Det sker i Concordia</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.5.0" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.5.0" />
-  <link rel="stylesheet" href="style.css?v=1.6.6" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.6.7" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.6.7" />
+  <link rel="stylesheet" href="style.css?v=1.6.7" />
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -29,7 +29,7 @@
 
             welcomeNotification: {
               title: 'Beskeder fra appen er slået til',
-              message: 'Du får nu besked om nye aktiviteter, nye forslag og tilmeldingsfrister.',
+              message: 'Du får nu besked om nye aktiviteter, nye forslag, nye billeder og tilmeldingsfrister.',
               url: `${window.location.origin}${appBasePath}`
             },
             
@@ -72,7 +72,7 @@
       <div class="notification-prompt-icon" aria-hidden="true">🔔</div>
       <div class="notification-prompt-copy">
         <strong>Få besked, når der sker noget nyt</strong>
-        <span id="notificationPromptText">Slå beskeder til, så du får besked om nye aktiviteter, forslag og tilmeldingsfrister.</span>
+        <span id="notificationPromptText">Slå beskeder til, så du får besked om nye aktiviteter, forslag, billeder og tilmeldingsfrister.</span>
       </div>
       <button id="notificationPromptBtn" class="btn primary notification-prompt-btn" type="button">Slå til</button>
       <button id="notificationPromptDismiss" class="notification-prompt-dismiss" type="button" aria-label="Vis ikke beskeden igen">×</button>
@@ -222,7 +222,7 @@
           </figure>
         </div>
 
-        <p class="app-version">Version <span id="appVersion">1.6.6</span></p>
+        <p class="app-version">Version <span id="appVersion">1.6.7</span></p>
         <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
       </section>
     </main>
@@ -433,7 +433,7 @@
     </div>
   </dialog>
 
-  <script src="gallery-config.js?v=1.6.6"></script>
-  <script src="app.js?v=1.6.6"></script>
+  <script src="gallery-config.js?v=1.6.7"></script>
+  <script src="app.js?v=1.6.7"></script>
 </body>
 </html>
