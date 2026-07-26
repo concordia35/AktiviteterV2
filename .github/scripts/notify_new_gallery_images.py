@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import socket
 import sys
 import time
 from datetime import datetime
@@ -18,10 +19,11 @@ from zoneinfo import ZoneInfo
 
 APP_ID = "6917c2bb-a55c-4899-81c3-6664760c12ed"
 APP_URL = "https://concordia35.github.io/AktiviteterV2/"
-APPS_SCRIPT_URL = (
+DEFAULT_APPS_SCRIPT_URL = (
     "https://script.google.com/macros/s/"
     "AKfycby1ff1Xe_HeCUa1174Par5LamuqPn1s4As5nXCfg08QRyeGuyfXiWdkQ__3fqKLUDe6/exec"
 )
+APPS_SCRIPT_URL = os.getenv("GALLERY_APPS_SCRIPT_URL", DEFAULT_APPS_SCRIPT_URL).strip()
 STATE_PATH = Path(os.getenv("GALLERY_STATE_FILE", ".github/state/seen_gallery_images.json"))
 
 
@@ -117,26 +119,88 @@ def normalize_images(payload: object) -> list[dict]:
     return normalized
 
 
+def env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        print(f"Ignorerer ugyldig {name}={raw!r}; bruger {default}.", file=sys.stderr)
+        return default
+    return max(minimum, min(value, maximum))
+
+
 def fetch_payload() -> object:
     test_file = os.getenv("GALLERY_JSON_FILE", "").strip()
     if test_file:
         return json.loads(Path(test_file).read_text(encoding="utf-8"))
 
-    query = urlencode({"action": "listGallery", "_": str(int(time.time() * 1000))})
-    request = Request(
-        f"{APPS_SCRIPT_URL}?{query}",
-        headers={"User-Agent": "Concordia-GitHub-Action/1.0", "Accept": "application/json"},
+    timeout_seconds = env_int("GALLERY_FETCH_TIMEOUT", 120, 15, 300)
+    attempts = env_int("GALLERY_FETCH_ATTEMPTS", 3, 1, 5)
+    base_delay = env_int("GALLERY_FETCH_RETRY_DELAY", 8, 1, 60)
+    retryable_http_codes = {408, 425, 429, 500, 502, 503, 504}
+    last_error = "Ukendt fejl"
+
+    for attempt in range(1, attempts + 1):
+        query = urlencode(
+            {
+                "action": "listGallery",
+                "_": str(int(time.time() * 1000)),
+                "attempt": str(attempt),
+            }
+        )
+        request = Request(
+            f"{APPS_SCRIPT_URL}?{query}",
+            headers={
+                "User-Agent": "Concordia-GitHub-Action/1.1",
+                "Accept": "application/json",
+                "Cache-Control": "no-cache",
+            },
+        )
+        print(
+            f"Henter godkendte billeder fra Apps Script "
+            f"(forsøg {attempt}/{attempts}, timeout {timeout_seconds} sek.)"
+        )
+
+        try:
+            with urlopen(request, timeout=timeout_seconds) as response:
+                raw = response.read().decode("utf-8")
+                payload = json.loads(raw)
+                print(f"Apps Script svarede på forsøg {attempt}.")
+                return payload
+        except HTTPError as error:
+            try:
+                body = error.read().decode("utf-8", errors="replace")[:1000]
+            except Exception:
+                body = "Kunne ikke læse fejlteksten"
+            last_error = f"HTTP {error.code}: {body}"
+            if error.code not in retryable_http_codes:
+                print(f"Apps Script-fejl: {last_error}", file=sys.stderr)
+                raise SystemExit(1) from error
+        except (TimeoutError, socket.timeout) as error:
+            last_error = f"timeout efter {timeout_seconds} sekunder: {error}"
+        except URLError as error:
+            last_error = f"netværksfejl: {error.reason}"
+        except UnicodeDecodeError as error:
+            last_error = f"svaret kunne ikke afkodes som tekst: {error}"
+        except json.JSONDecodeError as error:
+            last_error = f"Apps Script returnerede ikke gyldig JSON: {error}"
+
+        if attempt < attempts:
+            delay = min(base_delay * (2 ** (attempt - 1)), 60)
+            print(
+                f"Forsøg {attempt} fejlede ({last_error}). "
+                f"Prøver igen om {delay} sekunder.",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+
+    print(
+        f"Kunne ikke hente galleriet efter {attempts} forsøg. Sidste fejl: {last_error}",
+        file=sys.stderr,
     )
-    try:
-        with urlopen(request, timeout=45) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except HTTPError as error:
-        body = error.read().decode("utf-8", errors="replace")
-        print(f"Apps Script-fejl {error.code}: {body}", file=sys.stderr)
-        raise SystemExit(1) from error
-    except (URLError, json.JSONDecodeError) as error:
-        print(f"Kunne ikke hente galleriet: {error}", file=sys.stderr)
-        raise SystemExit(1) from error
+    raise SystemExit(1)
 
 
 def load_state() -> dict:

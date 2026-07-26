@@ -23,6 +23,7 @@ concurrency:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - name: Hent repository
         uses: actions/checkout@v4
@@ -32,6 +33,9 @@ jobs:
       - name: Find nye godkendte billeder og send push
         env:
           ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+          GALLERY_FETCH_TIMEOUT: 120
+          GALLERY_FETCH_ATTEMPTS: 3
+          GALLERY_FETCH_RETRY_DELAY: 8
         run: python3 .github/scripts/notify_new_gallery_images.py
 
       - name: Gem hvilke billeder der allerede er behandlet
