@@ -51,9 +51,9 @@
     "start": "10:00",
     "end": "15:00",
     "timeText": "Kl. 10.00 – 15.00",
-    "place": "Odd Fellow Bygningen, Frederiksgade 15, Slagelse",
+    "place": "Ordensbygningen i Slagelse, Frederiksgade 15, Slagelse",
     "poster": "assets/loppemarked-2026.png",
-    "text": "Loppemarked i Odd Fellow-huset med stande, loppefund, pølser med brød, kaffe, kage og gratis popcorn."
+    "text": "Loppemarked i Ordensbygningen i Slagelse med stande, loppefund, pølser med brød, kaffe, kage og gratis popcorn."
   },
   {
     "id": "sct-michaels-nat",
@@ -79,7 +79,7 @@
     "start": "17:00",
     "end": "23:00",
     "timeText": "Kl. 17.00 – 23.00",
-    "place": "Odd Fellow Bygningen, Frederiksgade 15, Slagelse",
+    "place": "Ordensbygningen i Slagelse, Frederiksgade 15, Slagelse",
     "poster": "assets/sct-patricks-day-2027.png",
     "text": "Festlig aften med musik, fællesskab, irsk stemning, salg af drikkevarer og mulighed for at købe lidt mad."
   },
