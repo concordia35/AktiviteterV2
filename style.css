@@ -438,6 +438,9 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .signup-checkline{display:flex;align-items:center;gap:10px;font-weight:800;color:#39271d}
 .signup-checkline input{width:auto}
 .signup-guest-details{display:grid;gap:12px;margin-top:14px}
+.signup-guest-count-label{display:grid;gap:7px;font-weight:850;color:#39271d}
+.signup-guest-count-label select{width:100%;border:1px solid rgba(159,120,59,.28);border-radius:15px;padding:12px 13px;background:rgba(255,255,255,.9);color:var(--ink);font:inherit;font-weight:800}
+.signup-optional{font-size:12px;font-weight:700;color:var(--muted)}
 .signup-guest-details input,.signup-note-label textarea{width:100%;border:1px solid rgba(159,120,59,.28);border-radius:15px;padding:12px 13px;background:rgba(255,255,255,.9);color:var(--ink);font:inherit}
 .signup-note-label{display:grid;gap:6px;margin:14px 20px 0;font-weight:850;color:#39271d}
 #signupGuestName,#signupNoteInput{font:inherit}

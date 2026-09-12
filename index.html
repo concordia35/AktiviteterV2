@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Concordia" />
   <title>Det sker i Concordia</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.6.7" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.6.7" />
-  <link rel="stylesheet" href="style.css?v=1.6.7" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.7.0" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=1.7.0" />
+  <link rel="stylesheet" href="style.css?v=1.7.0" />
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -107,7 +107,7 @@
     <main id="viewLoge" class="view">
       <section class="page-card signup-page-card">
         <div class="section-title"><span></span><h2>Tilmelding til logeaftener</h2></div>
-        <p class="signup-intro">Vælg dit navn. Tryk derefter på en aften for at vælge, om du deltager, spiser med eller tager en gæst med.</p>
+        <p class="signup-intro">Vælg dit navn. Tryk derefter på en aften for at vælge, om du deltager, spiser med og hvor mange gæster du tager med.</p>
 
         <div class="signup-member-row">
           <select id="signupMemberSelect" aria-label="Vælg navn">
@@ -222,7 +222,7 @@
           </figure>
         </div>
 
-        <p class="app-version">Version <span id="appVersion">1.6.7</span></p>
+        <p class="app-version">Version <span id="appVersion">1.7.0</span></p>
         <p class="warning">Intern side for brødrene i Concordia – del ikke offentligt.</p>
       </section>
     </main>
@@ -404,11 +404,25 @@
         </div>
 
         <div id="signupGuestBlock" class="signup-choice-block" hidden>
-          <h3>Gæst</h3>
-          <label class="signup-checkline"><input id="signupGuestYes" type="checkbox"> Jeg tager en gæst med</label>
+          <h3>Gæster</h3>
+          <label class="signup-guest-count-label">Antal gæster
+            <select id="signupGuestCount" aria-label="Antal gæster">
+              <option value="0">Ingen gæster</option>
+              <option value="1">1 gæst</option>
+              <option value="2">2 gæster</option>
+              <option value="3">3 gæster</option>
+              <option value="4">4 gæster</option>
+              <option value="5">5 gæster</option>
+              <option value="6">6 gæster</option>
+              <option value="7">7 gæster</option>
+              <option value="8">8 gæster</option>
+              <option value="9">9 gæster</option>
+              <option value="10">10 gæster</option>
+            </select>
+          </label>
           <div id="signupGuestDetails" class="signup-guest-details" hidden>
-            <label>Gæstens navn<input id="signupGuestName" type="text" placeholder="Navn på gæst"></label>
-            <label class="signup-checkline"><input id="signupGuestMeal" type="checkbox"> Gæsten spiser med</label>
+            <label>Navn på gæst(er) <span class="signup-optional">(valgfrit)</span><input id="signupGuestName" type="text" placeholder="Fx Anna, Peter"></label>
+            <label class="signup-checkline"><input id="signupGuestMeal" type="checkbox"> Gæsten/gæsterne spiser med</label>
           </div>
         </div>
 
@@ -433,7 +447,7 @@
     </div>
   </dialog>
 
-  <script src="gallery-config.js?v=1.6.7"></script>
-  <script src="app.js?v=1.6.7"></script>
+  <script src="gallery-config.js?v=1.7.0"></script>
+  <script src="app.js?v=1.7.0"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.7';
+const APP_VERSION = '1.7.0';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1335,7 +1335,7 @@ const SignupApp = (() => {
     els.modalCalendar = document.getElementById('signupModalCalendar');
     els.mealBlock = document.getElementById('signupMealBlock');
     els.guestBlock = document.getElementById('signupGuestBlock');
-    els.guestYes = document.getElementById('signupGuestYes');
+    els.guestCount = document.getElementById('signupGuestCount');
     els.guestDetails = document.getElementById('signupGuestDetails');
     els.guestName = document.getElementById('signupGuestName');
     els.guestMeal = document.getElementById('signupGuestMeal');
@@ -1369,7 +1369,7 @@ const SignupApp = (() => {
     document.querySelectorAll('[data-signup-meal]').forEach(btn => {
       btn.addEventListener('click', () => chooseMeal(btn.dataset.signupMeal));
     });
-    els.guestYes?.addEventListener('change', syncGuest);
+    els.guestCount?.addEventListener('change', syncGuest);
     els.saveSignupBtn?.addEventListener('click', saveSignup);
   }
 
@@ -1461,7 +1461,7 @@ const SignupApp = (() => {
               <h3>${esc(event.title)}</h3>
               <p class="signup-card-meta">${cap(dateFmt.format(d))} · kl. ${event.time.replace(':', '.')} ${event.category ? `· ${esc(event.category)}` : ''}</p>
               ${event.description ? `<p class="signup-card-description">${esc(event.description)}</p>` : ''}
-              <p class="signup-card-counts">Deltagere: ${summary.attending} · Spiser: ${summary.meals}${summary.guestMeals ? ` · Gæster spiser: ${summary.guestMeals}` : ''}</p>
+              <p class="signup-card-counts">Deltagere: ${summary.attending} · Spiser: ${summary.meals}${summary.guests ? ` · Gæster: ${summary.guests}` : ''}${summary.guestMeals ? ` · Gæster spiser: ${summary.guestMeals}` : ''}</p>
               ${deadlineLabel ? `<p class="signup-deadline-text ${locked ? 'locked' : ''}">${deadlineLabel}</p>` : ''}
               ${buildCalendarLinks(event)}
             </div>
@@ -1541,6 +1541,7 @@ const SignupApp = (() => {
       attending: existing.attending || null,
       meal: existing.meal || null,
       guest: existing.guest === 'yes',
+      guestCount: existing.guestCount || (existing.guest === 'yes' ? 1 : 0),
       guestName: existing.guestName || '',
       guestMeal: existing.guestMeal === 'yes',
       note: existing.note || '',
@@ -1574,6 +1575,7 @@ const SignupApp = (() => {
     if (v === 'no') {
       state.currentChoice.meal = 'no';
       state.currentChoice.guest = false;
+      state.currentChoice.guestCount = 0;
       state.currentChoice.guestName = '';
       state.currentChoice.guestMeal = false;
     }
@@ -1588,7 +1590,9 @@ const SignupApp = (() => {
 
   function syncGuest() {
     if (state.currentChoice.locked) return;
-    state.currentChoice.guest = els.guestYes.checked;
+    const count = Math.max(0, Math.min(10, Number.parseInt(els.guestCount?.value || '0', 10) || 0));
+    state.currentChoice.guestCount = count;
+    state.currentChoice.guest = count > 0;
     if (!state.currentChoice.guest) {
       state.currentChoice.guestName = '';
       state.currentChoice.guestMeal = false;
@@ -1603,9 +1607,10 @@ const SignupApp = (() => {
       btn.disabled = state.currentChoice.attending !== 'yes' || state.currentChoice.locked;
     });
     els.mealBlock.style.opacity = state.currentChoice.attending === 'yes' ? '1' : '.55';
-    els.guestYes.checked = !!state.currentChoice.guest;
-    els.guestYes.disabled = state.currentChoice.attending !== 'yes' || state.currentChoice.locked;
-    els.guestDetails.hidden = !state.currentChoice.guest || state.currentChoice.attending !== 'yes';
+    const guestCount = Math.max(0, Number.parseInt(state.currentChoice.guestCount || '0', 10) || 0);
+    els.guestCount.value = String(guestCount);
+    els.guestCount.disabled = state.currentChoice.attending !== 'yes' || state.currentChoice.locked;
+    els.guestDetails.hidden = guestCount < 1 || state.currentChoice.attending !== 'yes';
     els.guestName.value = state.currentChoice.guestName || '';
     els.guestMeal.checked = !!state.currentChoice.guestMeal;
   }
@@ -1613,7 +1618,7 @@ const SignupApp = (() => {
   function setModalDisabled(disabled) {
     document.querySelectorAll('[data-signup-attending]').forEach(btn => btn.disabled = disabled);
     document.querySelectorAll('[data-signup-meal]').forEach(btn => btn.disabled = disabled || state.currentChoice.attending !== 'yes');
-    els.guestYes.disabled = disabled || state.currentChoice.attending !== 'yes';
+    els.guestCount.disabled = disabled || state.currentChoice.attending !== 'yes';
     els.guestName.disabled = disabled;
     els.guestMeal.disabled = disabled;
     els.noteInput.disabled = disabled;
@@ -1650,10 +1655,14 @@ const SignupApp = (() => {
       deltager: state.currentChoice.attending,
       meal: state.currentChoice.attending === 'yes' ? state.currentChoice.meal : 'no',
       mad: state.currentChoice.attending === 'yes' ? state.currentChoice.meal : 'no',
-      guest: state.currentChoice.attending === 'yes' && els.guestYes.checked ? 'yes' : 'no',
-      guestName: state.currentChoice.attending === 'yes' && els.guestYes.checked ? els.guestName.value.trim() : '',
-      guestFood: state.currentChoice.attending === 'yes' && els.guestYes.checked && els.guestMeal.checked ? 'yes' : 'no',
-      guestMeal: state.currentChoice.attending === 'yes' && els.guestYes.checked && els.guestMeal.checked ? 'yes' : 'no',
+      guest: state.currentChoice.attending === 'yes' && Number.parseInt(els.guestCount.value || '0', 10) > 0 ? 'yes' : 'no',
+      guestCount: state.currentChoice.attending === 'yes' ? Math.max(0, Math.min(10, Number.parseInt(els.guestCount.value || '0', 10) || 0)) : 0,
+      guestName: buildStoredGuestName(
+        state.currentChoice.attending === 'yes' ? Math.max(0, Math.min(10, Number.parseInt(els.guestCount.value || '0', 10) || 0)) : 0,
+        els.guestName.value.trim()
+      ),
+      guestFood: state.currentChoice.attending === 'yes' && Number.parseInt(els.guestCount.value || '0', 10) > 0 && els.guestMeal.checked ? 'yes' : 'no',
+      guestMeal: state.currentChoice.attending === 'yes' && Number.parseInt(els.guestCount.value || '0', 10) > 0 && els.guestMeal.checked ? 'yes' : 'no',
       note: els.noteInput.value.trim(),
       updatedAt: new Date().toISOString()
     };
@@ -1678,13 +1687,32 @@ const SignupApp = (() => {
     }
   }
 
+  function buildStoredGuestName(count, names) {
+    if (!count) return '';
+    const cleanNames = String(names || '').trim();
+    return `${count} ${count === 1 ? 'gæst' : 'gæster'}${cleanNames ? `: ${cleanNames}` : ''}`;
+  }
+
+  function parseGuestCount(rawCount, storedName, guestFlag) {
+    const direct = Number.parseInt(rawCount, 10);
+    if (Number.isFinite(direct) && direct >= 0) return Math.min(10, direct);
+    const match = String(storedName || '').trim().match(/^(\d{1,2})\s+gæst(?:er)?(?:\s*:|$)/i);
+    if (match) return Math.min(10, Number.parseInt(match[1], 10) || 0);
+    return guestFlag === 'yes' ? 1 : 0;
+  }
+
+  function cleanStoredGuestName(value) {
+    return String(value || '').replace(/^\d{1,2}\s+gæst(?:er)?\s*:\s*/i, '').replace(/^\d{1,2}\s+gæst(?:er)?$/i, '').trim();
+  }
+
   function getSummary(eventId) {
     const latest = getLatestRows(state.rows);
     const rows = Object.values(latest).filter(r => r.eventId === eventId && r.attending === 'yes');
     return {
       attending: rows.length,
       meals: rows.filter(r => r.meal === 'yes').length,
-      guestMeals: rows.filter(r => r.guestMeal === 'yes').length
+      guests: rows.reduce((sum, r) => sum + (r.guest === 'yes' ? (r.guestCount || 1) : 0), 0),
+      guestMeals: rows.reduce((sum, r) => sum + (r.guestMeal === 'yes' ? (r.guestCount || 1) : 0), 0)
     };
   }
 
@@ -1776,7 +1804,8 @@ const SignupApp = (() => {
       attending: yn(r.attending || r.deltager),
       meal: yn(r.meal || r.mad),
       guest: yn(r.guest),
-      guestName: r.guestName || '',
+      guestCount: parseGuestCount(r.guestCount, r.guestName, yn(r.guest)),
+      guestName: cleanStoredGuestName(r.guestName || ''),
       guestMeal: yn(r.guestMeal || r.guestFood),
       note: r.note || '',
       updatedAt: r.updatedAt || r.timestamp || new Date().toISOString()
@@ -1787,11 +1816,12 @@ const SignupApp = (() => {
     const locked = event ? isDeadlinePassed(event) : false;
     if (!s) return locked ? { label: 'Fristen er udløbet', className: 'status-no' } : { label: 'Ikke tilmeldt endnu', className: 'status-none' };
     if (s.attending === 'no') return { label: locked ? 'Deltager ikke · frist udløbet' : 'Deltager ikke', className: 'status-no' };
+    const guestLabel = s.guest === 'yes' ? ` og ${s.guestCount || 1} ${(s.guestCount || 1) === 1 ? 'gæst' : 'gæster'}` : '';
     if (s.attending === 'yes' && s.meal === 'yes') {
-      return { label: s.guest === 'yes' ? (locked ? 'Tilmeldt med mad og gæst · frist udløbet' : 'Tilmeldt med mad og gæst') : (locked ? 'Tilmeldt med mad · frist udløbet' : 'Tilmeldt med mad'), className: 'status-yes' };
+      return { label: locked ? `Tilmeldt med mad${guestLabel} · frist udløbet` : `Tilmeldt med mad${guestLabel}`, className: 'status-yes' };
     }
     if (s.attending === 'yes') {
-      return { label: s.guest === 'yes' ? (locked ? 'Tilmeldt uden mad, med gæst · frist udløbet' : 'Tilmeldt uden mad, med gæst') : (locked ? 'Tilmeldt uden mad · frist udløbet' : 'Tilmeldt uden mad'), className: 'status-meal-no' };
+      return { label: locked ? `Tilmeldt uden mad${guestLabel} · frist udløbet` : `Tilmeldt uden mad${guestLabel}`, className: 'status-meal-no' };
     }
     return { label: 'Ikke tilmeldt endnu', className: 'status-none' };
   }
