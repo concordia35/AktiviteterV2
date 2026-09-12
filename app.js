@@ -1,4 +1,4 @@
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1461,7 +1461,7 @@ const SignupApp = (() => {
               <h3>${esc(event.title)}</h3>
               <p class="signup-card-meta">${cap(dateFmt.format(d))} · kl. ${event.time.replace(':', '.')} ${event.category ? `· ${esc(event.category)}` : ''}</p>
               ${event.description ? `<p class="signup-card-description">${esc(event.description)}</p>` : ''}
-              <p class="signup-card-counts">Deltagere: ${summary.attending} · Spiser: ${summary.meals}${summary.guests ? ` · Gæster: ${summary.guests}` : ''}${summary.guestMeals ? ` · Gæster spiser: ${summary.guestMeals}` : ''}</p>
+              <p class="signup-card-counts">Deltagere: ${summary.attending + summary.guests}</p>
               ${deadlineLabel ? `<p class="signup-deadline-text ${locked ? 'locked' : ''}">${deadlineLabel}</p>` : ''}
               ${buildCalendarLinks(event)}
             </div>
