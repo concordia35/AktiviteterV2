@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Send en OneSignal-påmindelse søndag aften om onsdagens tilmeldingsfrist."""
+"""Send en OneSignal-påmindelse søndag om onsdagens tilmeldingsfrist."""
 
 from __future__ import annotations
 
@@ -78,7 +78,10 @@ def rows_to_objects(value: object) -> list[dict]:
         for raw_row in value[1:]:
             if not isinstance(raw_row, list):
                 continue
-            row = {header: raw_row[index] if index < len(raw_row) else "" for index, header in enumerate(headers)}
+            row = {
+                header: raw_row[index] if index < len(raw_row) else ""
+                for index, header in enumerate(headers)
+            }
             rows.append(row)
         return rows
 
@@ -120,7 +123,9 @@ def first_value(row: dict, aliases: list[str]) -> object:
 def normalize_events(payload: object) -> list[dict]:
     events: list[dict] = []
     for row in extract_events(payload):
-        event_date = normalize_date(first_value(row, ["date", "dato", "eventDate", "eventdato"]))
+        event_date = normalize_date(
+            first_value(row, ["date", "dato", "eventDate", "eventdato"])
+        )
         if not event_date:
             event_date = normalize_date(first_value(row, ["id", "eventId"]))
 
@@ -130,7 +135,10 @@ def normalize_events(payload: object) -> list[dict]:
 
         raw_id = first_value(row, ["id", "eventId", "event id"])
         event_id = normalize_date(raw_id) if raw_id else event_date
-        title = str(first_value(row, ["title", "titel", "navn", "arrangement"]) or "Logeaften").strip()
+        title = str(
+            first_value(row, ["title", "titel", "navn", "arrangement"])
+            or "Logeaften"
+        ).strip()
 
         events.append({
             "id": event_id,
@@ -149,8 +157,12 @@ def fetch_payload() -> object:
     query = urlencode({"action": "list", "t": str(int(time.time() * 1000))})
     request = Request(
         f"{APPS_SCRIPT_URL}?{query}",
-        headers={"User-Agent": "Concordia-GitHub-Action/1.0", "Accept": "application/json"},
+        headers={
+            "User-Agent": "Concordia-GitHub-Action/1.0",
+            "Accept": "application/json",
+        },
     )
+
     try:
         with urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8"))
@@ -166,9 +178,14 @@ def fetch_payload() -> object:
 def load_state() -> set[str]:
     if not STATE_PATH.exists():
         return set()
+
     try:
         data = json.loads(STATE_PATH.read_text(encoding="utf-8"))
-        return {str(value) for value in data.get("sent_keys", []) if str(value).strip()}
+        return {
+            str(value)
+            for value in data.get("sent_keys", [])
+            if str(value).strip()
+        }
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"Kunne ikke læse påmindelsesstatus: {error}", file=sys.stderr)
         raise SystemExit(1) from error
@@ -193,13 +210,17 @@ def format_date_da(value: str) -> str:
     parsed = parse_date(value)
     if not parsed:
         return value
+
     return f"{parsed.day}. {MONTHS_DA[parsed.month - 1]} {parsed.year}"
 
 
 def make_payload(event: dict) -> dict:
     event_date = format_date_da(event["date"])
     title = event.get("title") or "logeaften"
-    body = f"Tilmeldingen til {title} onsdag den {event_date} lukker i aften kl. 24.00."
+    body = (
+        f"Tilmeldingen til {title} onsdag den {event_date} "
+        f"lukker i aften kl. 24.00."
+    )
     url = f"{APP_URL}?tilmelding={quote(str(event['id']))}"
 
     return {
@@ -220,7 +241,10 @@ def send(payload: dict) -> None:
 
     api_key = os.getenv("ONESIGNAL_API_KEY", "").strip()
     if not api_key:
-        print("ONESIGNAL_API_KEY mangler. Påmindelsen blev ikke markeret som sendt.", file=sys.stderr)
+        print(
+            "ONESIGNAL_API_KEY mangler. Påmindelsen blev ikke markeret som sendt.",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
 
     request = Request(
@@ -237,14 +261,23 @@ def send(payload: dict) -> None:
         with urlopen(request, timeout=30) as response:
             body = response.read().decode("utf-8")
             print(f"OneSignal svarede {response.status}: {body}")
+
             try:
                 result = json.loads(body)
             except json.JSONDecodeError as error:
-                print("OneSignal returnerede et ugyldigt JSON-svar.", file=sys.stderr)
+                print(
+                    "OneSignal returnerede et ugyldigt JSON-svar.",
+                    file=sys.stderr,
+                )
                 raise SystemExit(1) from error
+
             if result.get("errors") or not result.get("id"):
-                print("OneSignal sendte ikke påmindelsen til nogen modtagere.", file=sys.stderr)
+                print(
+                    "OneSignal sendte ikke påmindelsen til nogen modtagere.",
+                    file=sys.stderr,
+                )
                 raise SystemExit(1)
+
     except HTTPError as error:
         body = error.read().decode("utf-8", errors="replace")
         print(f"OneSignal-fejl {error.code}: {body}", file=sys.stderr)
@@ -255,37 +288,71 @@ def send(payload: dict) -> None:
 
 
 def forced_run() -> bool:
-    return os.getenv("FORCE_RUN", "").strip().lower() in {"1", "true", "yes", "ja"}
+    return os.getenv("FORCE_RUN", "").strip().lower() in {
+        "1", "true", "yes", "ja"
+    }
 
 
 def main() -> None:
     now = datetime.now(TIME_ZONE)
     force = forced_run()
 
-    if not force and (now.weekday() != 6 or now.hour not in {18, 19}):
-        print(f"Ingen kørsel: lokal tid er {now:%A %H:%M}. Påmindelser sendes søndag omkring kl. 18.")
+    # GitHub Actions kan starte planlagte jobs senere end cron-tidspunktet.
+    # Derfor begrænser vi kun automatiske kørsler til søndag og ikke til
+    # et bestemt klokkeslæt.
+    #
+    # State-filen sikrer, at samme logeaften kun udløser én påmindelse
+    # den pågældende søndag.
+    if not force and now.weekday() != 6:
+        print(
+            f"Ingen kørsel: lokal dag er {now:%A}. "
+            "Automatiske påmindelser sendes kun søndag."
+        )
         return
 
     target_date = now.date() + timedelta(days=3)
+
     if target_date.weekday() != 2:
-        print(f"Ingen kørsel: tre dage fra i dag er {target_date}, som ikke er en onsdag.")
+        print(
+            f"Ingen kørsel: tre dage fra i dag er {target_date}, "
+            "som ikke er en onsdag."
+        )
         return
 
-    events = [event for event in normalize_events(fetch_payload()) if parse_date(event["date"]) == target_date]
+    events = [
+        event
+        for event in normalize_events(fetch_payload())
+        if parse_date(event["date"]) == target_date
+    ]
+
     if not events:
-        print(f"Ingen logeaften fundet onsdag den {target_date}. Ingen push sendt.")
+        print(
+            f"Ingen logeaften fundet onsdag den {target_date}. "
+            "Ingen push sendt."
+        )
         return
 
     sent_keys = load_state()
-    pending = [event for event in events if f"{event['id']}::{now.date().isoformat()}" not in sent_keys]
+
+    pending = [
+        event
+        for event in events
+        if f"{event['id']}::{now.date().isoformat()}" not in sent_keys
+    ]
+
     if not pending:
         print("Påmindelsen for onsdagens logeaften er allerede sendt.")
         return
 
     for event in pending:
         key = f"{event['id']}::{now.date().isoformat()}"
-        print(f"Sender tilmeldingspåmindelse for {event['id']} – {event['title']}")
+        print(
+            f"Sender tilmeldingspåmindelse for "
+            f"{event['id']} – {event['title']}"
+        )
+
         send(make_payload(event))
+
         sent_keys.add(key)
         save_state(sent_keys)
 
