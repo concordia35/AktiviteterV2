@@ -1,4 +1,4 @@
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.7.2';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1545,19 +1545,25 @@ const SignupApp = (() => {
       guestName: existing.guestName || '',
       guestMeal: existing.guestMeal === 'yes',
       note: existing.note || '',
+      existingAttending: existing.attending || null,
       locked
     };
 
     const d = new Date(`${event.date}T12:00:00`);
     els.modalDate.textContent = `${cap(dateFmt.format(d))} · kl. ${event.time.replace(':', '.')}`;
     els.modalTitle.textContent = event.title;
+    const canLateCancel = locked && existing.attending === 'yes';
     els.modalDescription.textContent = locked
-      ? 'Tilmeldingsfristen er overskredet. Du kan se din nuværende status, men ændringer skal gå via restauratøren.'
+      ? (canLateCancel
+          ? 'Tilmeldingsfristen er overskredet. Hvis du er blevet syg eller forhindret, kan du stadig framelde dig.'
+          : 'Tilmeldingsfristen er overskredet. Nye tilmeldinger er ikke længere mulige.')
       : (event.description || 'Vælg din tilmelding.');
     els.modalCalendar.innerHTML = buildCalendarLinks(event, true);
     els.guestBlock.hidden = !event.allowGuests;
     els.noteInput.value = state.currentChoice.note;
-    els.saveStatus.textContent = locked ? 'Fristen er overskredet. Kontakt restauratøren ved ændringer.' : '';
+    els.saveStatus.textContent = locked
+      ? (canLateCancel ? 'Efter fristen kan du kun framelde dig.' : 'Tilmeldingsfristen er overskredet.')
+      : '';
     syncChoices();
     setModalDisabled(locked);
     els.modal.showModal();
@@ -1570,7 +1576,10 @@ const SignupApp = (() => {
   }
 
   function chooseAttending(v) {
-    if (state.currentChoice.locked) return;
+    if (state.currentChoice.locked) {
+      const canLateCancel = state.currentChoice.existingAttending === 'yes' && v === 'no';
+      if (!canLateCancel) return;
+    }
     state.currentChoice.attending = v;
     if (v === 'no') {
       state.currentChoice.meal = 'no';
@@ -1580,6 +1589,7 @@ const SignupApp = (() => {
       state.currentChoice.guestMeal = false;
     }
     syncChoices();
+    if (state.currentChoice.locked) setModalDisabled(true);
   }
 
   function chooseMeal(v) {
@@ -1616,23 +1626,34 @@ const SignupApp = (() => {
   }
 
   function setModalDisabled(disabled) {
-    document.querySelectorAll('[data-signup-attending]').forEach(btn => btn.disabled = disabled);
+    const canLateCancel = disabled && state.currentChoice.existingAttending === 'yes';
+    document.querySelectorAll('[data-signup-attending]').forEach(btn => {
+      if (!disabled) {
+        btn.disabled = false;
+      } else {
+        btn.disabled = btn.dataset.signupAttending !== 'no' || !canLateCancel;
+      }
+    });
     document.querySelectorAll('[data-signup-meal]').forEach(btn => btn.disabled = disabled || state.currentChoice.attending !== 'yes');
     els.guestCount.disabled = disabled || state.currentChoice.attending !== 'yes';
     els.guestName.disabled = disabled;
     els.guestMeal.disabled = disabled;
     els.noteInput.disabled = disabled;
-    els.saveSignupBtn.disabled = disabled;
-    els.saveSignupBtn.textContent = disabled ? 'Frist overskredet' : 'Gem';
+    els.saveSignupBtn.disabled = disabled && !(canLateCancel && state.currentChoice.attending === 'no');
+    els.saveSignupBtn.textContent = disabled ? (canLateCancel ? 'Gem framelding' : 'Frist overskredet') : 'Gem';
   }
 
   async function saveSignup() {
     const member = storage.member;
     if (!member || !state.currentEvent) return;
     if (isDeadlinePassed(state.currentEvent)) {
-      els.saveStatus.textContent = 'Tilmeldingsfristen er overskredet. Kontakt restauratøren ved ændringer.';
-      setModalDisabled(true);
-      return;
+      const existing = state.signups[state.currentEvent.id];
+      const isLateCancellation = existing?.attending === 'yes' && state.currentChoice.attending === 'no';
+      if (!isLateCancellation) {
+        els.saveStatus.textContent = 'Tilmeldingsfristen er overskredet. Efter fristen kan du kun framelde dig.';
+        setModalDisabled(true);
+        return;
+      }
     }
     if (!state.currentChoice.attending) {
       els.saveStatus.textContent = 'Vælg om du deltager eller ej.';
@@ -1847,14 +1868,12 @@ const SignupApp = (() => {
   }
 
   function getDeadlineDate(event) {
-    if (!event || !event.deadline) return null;
-    const raw = String(event.deadline).trim();
-    if (!raw) return null;
-    let normalized = raw.replace(' ', 'T');
-    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) normalized += 'T23:59:00';
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalized)) normalized += ':00';
-    const d = new Date(normalized);
-    return isNaN(d.getTime()) ? null : d;
+    if (!event || !event.date) return null;
+    const eventDate = new Date(`${normalizeDate(event.date)}T12:00:00`);
+    if (isNaN(eventDate.getTime())) return null;
+    eventDate.setDate(eventDate.getDate() - 3);
+    eventDate.setHours(23, 59, 59, 999);
+    return eventDate;
   }
 
   function getDeadlineLabel(event) {
@@ -1862,7 +1881,7 @@ const SignupApp = (() => {
     if (!deadline) return '';
     const date = deadline.toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const time = deadline.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
-    return isDeadlinePassed(event) ? `Tilmeldingsfrist overskredet ${date} kl. ${time}` : `Tilmeld senest ${date} kl. ${time}`;
+    return isDeadlinePassed(event) ? `Tilmeldingsfrist udløb ${date} kl. ${time} · framelding er stadig mulig` : `Tilmeld senest ${date} kl. ${time}`;
   }
 
   function buildCalendarLinks(event, modal = false) {
