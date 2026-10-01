@@ -140,11 +140,17 @@ def normalize_events(payload: object) -> list[dict]:
             or "Logeaften"
         ).strip()
 
-        events.append({
+        event = {
             "id": event_id,
             "date": event_date,
             "title": title or "Logeaften",
-        })
+        }
+
+        # Rettelser fra den opdaterede mødeplan for 2. halvår 2026.
+        if event_date == "2026-11-04":
+            event["title"] = "Inspektion"
+
+        events.append(event)
 
     return events
 
