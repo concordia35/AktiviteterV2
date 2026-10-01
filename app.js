@@ -1282,6 +1282,8 @@ const SignupApp = (() => {
   const CONFIG = {
     GOOGLE_APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw5kZ4Yjgge_sKnxhSjjVLkb8cI-hG0E_qcScyxP7820a7lzfCr42HhZDp3lW2kmNsy/exec'
   };
+  const SHEET_CACHE_KEY = 'concordia_signup_sheet_cache_v1';
+  const SHEET_TIMEOUT_MS = 20000;
 
   const state = {
     initialized: false,
@@ -1350,7 +1352,13 @@ const SignupApp = (() => {
     if (!els.memberSelect || !els.eventsList || !els.modal) return;
     state.initialized = true;
     bind();
-    refreshFromSheet();
+    const hasCachedData = restoreSheetCache();
+    if (hasCachedData) {
+      renderMembers();
+      render();
+      openPendingDeepLink();
+    }
+    refreshFromSheet({ background: hasCachedData });
   }
 
   function bind() {
@@ -1373,7 +1381,35 @@ const SignupApp = (() => {
     els.saveSignupBtn?.addEventListener('click', saveSignup);
   }
 
-  async function refreshFromSheet() {
+  function applySheetData(data) {
+    state.members = normalizeMembers(data?.members);
+    state.rows = normalizeRows(data?.rows || data?.signups || []);
+    state.events = getUpcomingEvents(normalizeEvents(data?.events || []));
+    mergeCurrentUserRows();
+  }
+
+  function restoreSheetCache() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(SHEET_CACHE_KEY) || 'null');
+      if (!cached?.data) return false;
+      applySheetData(cached.data);
+      return state.members.length > 0 || state.events.length > 0;
+    } catch (err) {
+      console.warn('Kunne ikke læse lokal tilmeldings-cache', err);
+      try { localStorage.removeItem(SHEET_CACHE_KEY); } catch {}
+      return false;
+    }
+  }
+
+  function saveSheetCache(data) {
+    try {
+      localStorage.setItem(SHEET_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }));
+    } catch (err) {
+      console.warn('Kunne ikke gemme lokal tilmeldings-cache', err);
+    }
+  }
+
+  async function refreshFromSheet({ background = false } = {}) {
     if (!CONFIG.GOOGLE_APPS_SCRIPT_URL) {
       state.members = fallbackMembers();
       state.events = [];
@@ -1383,22 +1419,32 @@ const SignupApp = (() => {
       return;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SHEET_TIMEOUT_MS);
     try {
-      els.syncStatus.textContent = 'Henter de nyeste tilmeldinger…';
-      const res = await fetch(`${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=list&t=${Date.now()}`, { cache: 'no-store' });
+      els.syncStatus.textContent = background ? 'Viser gemte data · opdaterer…' : 'Henter de nyeste tilmeldinger…';
+      const res = await fetch(`${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=list&t=${Date.now()}`, {
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      state.members = normalizeMembers(data.members);
-      state.rows = normalizeRows(data.rows || data.signups || []);
-      state.events = getUpcomingEvents(normalizeEvents(data.events || []));
-      mergeCurrentUserRows();
+      applySheetData(data);
+      saveSheetCache(data);
       els.syncStatus.textContent = 'De nyeste tilmeldinger er hentet.';
     } catch (err) {
       console.warn('Kunne ikke hente tilmeldingsdata', err);
-      state.members = fallbackMembers();
-      state.rows = [];
-      state.signups = {};
-      state.events = [];
-      els.syncStatus.textContent = 'Tilmeldingerne kunne ikke hentes. Prøv at genindlæse siden.';
+      if (background || state.members.length || state.events.length) {
+        els.syncStatus.textContent = 'Viser senest hentede data. Kunne ikke opdatere lige nu.';
+      } else {
+        state.members = fallbackMembers();
+        state.rows = [];
+        state.signups = {};
+        state.events = [];
+        els.syncStatus.textContent = 'Tilmeldingerne kunne ikke hentes. Prøv at genindlæse siden.';
+      }
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     renderMembers();
