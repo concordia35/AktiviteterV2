@@ -1,0 +1,27 @@
+name: Send notifikation om ny aktivitet
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - events.json
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hent repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find nye aktiviteter og send push
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+        run: python3 .github/scripts/notify_new_activity.py

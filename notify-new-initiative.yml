@@ -1,0 +1,50 @@
+name: Kontroller nye initiativer
+
+on:
+  # Faste minutter væk fra de mest belastede hel- og kvarterstider.
+  # En ændring af cron-linjen får samtidig GitHub til at registrere tidsplanen på ny.
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/notify-new-initiative.yml'
+      - '.github/scripts/notify_new_initiative.py'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: concordia-initiative-notifications
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hent repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find nye godkendte initiativer og send push
+        env:
+          ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+        run: python3 .github/scripts/notify_new_initiative.py
+
+      - name: Gem hvilke initiativer der allerede er behandlet
+        shell: bash
+        run: |
+          if git diff --quiet -- .github/state/seen_initiatives.json; then
+            echo "Ingen ændring i state."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/state/seen_initiatives.json
+          git commit -m "Opdater initiativ-notifikationsstatus [skip ci]"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
