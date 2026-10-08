@@ -1846,16 +1846,6 @@ const SignupApp = (() => {
       deadline: normalizeDeadline(e.deadline || e.frist || e.tilmeldingsfrist || '', date)
     };
 
-    // Rettelser fra den opdaterede mødeplan for 2. halvår 2026.
-    if (date === '2026-10-14') {
-      event.description = '';
-    } else if (date === '2026-10-21') {
-      event.description = 'Etisk indlæg';
-    } else if (date === '2026-11-04') {
-      event.title = 'Inspektion';
-      event.description = '';
-    }
-
     return event;
   }
 
