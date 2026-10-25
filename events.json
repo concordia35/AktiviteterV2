@@ -96,5 +96,18 @@
     "place": "Skjoldenæsvej 95, 4174 Jystrup",
     "poster": "assets/sommerudflugt-2026.jpg",
     "text": "Sommerudflugt til Sporvejsmuseet Skjoldenæsholm. Fælles frokost kl. 12.00 med smørrebrød, kaffe og kage. Pris 250 kr. pr. person. Tilmelding og betaling senest 19. juli til Torben Møller Sørensen."
+  },
+  {
+    "id": "julebanko-2026",
+    "type": "public",
+    "icon": "🎄",
+    "title": "Kæmpe julebanko",
+    "subtitle": "Concordia · 175 kr. inkl. én bankoplade, mad, kaffe og kage",
+    "date": "2026-11-19",
+    "start": "18:00",
+    "timeText": "Dørene åbner kl. 17.00 · Banko starter kl. 18.00",
+    "place": "Ordensbygningen, Frederiksgade 15, Slagelse",
+    "poster": "assets/julebanko-2026.webp",
+    "text": "Kæmpe julebanko med 5 + 5 spil og præmier for over 10.000 kr. Billetten koster 175 kr. og inkluderer én bankoplade, lune frikadeller med kold kartoffelsalat samt kaffe og kage i pausen. Ekstra bankoplader: 2 plader for 50 kr. eller 5 plader for 100 kr. Amerikansk lotteri i pausen. Tilmeld dig under Tilmeldinger i appen."
   }
 ]

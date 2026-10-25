@@ -1,4 +1,4 @@
-const APP_VERSION = '1.7.3';
+const APP_VERSION = '1.7.4';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
