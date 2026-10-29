@@ -1,4 +1,4 @@
-const APP_VERSION = '1.7.4';
+const APP_VERSION = '1.7.5';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1023,6 +1023,7 @@ async function init(){
     if(!Array.isArray(events)) events = [];
   }catch(err){
     console.error('Kunne ikke indlæse events.json:', err);
+    window.ConcordiaTelemetry?.emit('activity_load_error', {error: 'network'});
     events = [];
     if(nextEvent) nextEvent.innerHTML = `<div class="empty">Kunne ikke indlæse events.json.</div>`;
   }
@@ -1421,6 +1422,7 @@ const SignupApp = (() => {
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), SHEET_TIMEOUT_MS);
+    const sheetLoadStarted = performance.now();
     try {
       els.syncStatus.textContent = background ? 'Viser gemte data · opdaterer…' : 'Henter de nyeste tilmeldinger…';
       const res = await fetch(`${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=list&t=${Date.now()}`, {
@@ -1430,10 +1432,12 @@ const SignupApp = (() => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       applySheetData(data);
+      window.ConcordiaTelemetry?.emit('signup_load', {duration_ms: performance.now() - sheetLoadStarted});
       saveSheetCache(data);
       els.syncStatus.textContent = 'De nyeste tilmeldinger er hentet.';
     } catch (err) {
       console.warn('Kunne ikke hente tilmeldingsdata', err);
+      window.ConcordiaTelemetry?.emit('signup_error', {error: err?.name === 'AbortError' ? 'timeout' : /^HTTP/.test(err?.message || '') ? 'http' : 'network', duration_ms: performance.now() - sheetLoadStarted});
       if (background || state.members.length || state.events.length) {
         els.syncStatus.textContent = 'Viser senest hentede data. Kunne ikke opdatere lige nu.';
       } else {
@@ -1745,10 +1749,12 @@ const SignupApp = (() => {
       const data = await res.json();
       if (!(data.ok || data.success)) throw new Error(data.error || 'Ukendt fejl');
       els.saveStatus.textContent = 'Din tilmelding er gemt.';
+      window.ConcordiaTelemetry?.emit('signup_saved');
       await refreshFromSheet();
       setTimeout(() => closeModal(), 650);
     } catch (err) {
       console.warn('Kunne ikke gemme tilmelding', err);
+      window.ConcordiaTelemetry?.emit('signup_error', {error: /^HTTP/.test(err?.message || '') ? 'http' : 'unknown'});
       els.saveSignupBtn.disabled = false;
       els.saveStatus.textContent = 'Din tilmelding kunne ikke gemmes. Prøv igen.';
     }
