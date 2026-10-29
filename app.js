@@ -1437,7 +1437,7 @@ const SignupApp = (() => {
       els.syncStatus.textContent = 'De nyeste tilmeldinger er hentet.';
     } catch (err) {
       console.warn('Kunne ikke hente tilmeldingsdata', err);
-      window.ConcordiaTelemetry?.emit('signup_error', {error: err?.name === 'AbortError' ? 'timeout' : /^HTTP/.test(err?.message || '') ? 'http' : 'network', duration_ms: performance.now() - sheetLoadStarted});
+      window.ConcordiaTelemetry?.emit('signup_error', {stage:'load', error: err?.name === 'AbortError' ? 'timeout' : /^HTTP/.test(err?.message || '') ? 'http' : 'network', duration_ms: performance.now() - sheetLoadStarted});
       if (background || state.members.length || state.events.length) {
         els.syncStatus.textContent = 'Viser senest hentede data. Kunne ikke opdatere lige nu.';
       } else {
@@ -1754,7 +1754,7 @@ const SignupApp = (() => {
       setTimeout(() => closeModal(), 650);
     } catch (err) {
       console.warn('Kunne ikke gemme tilmelding', err);
-      window.ConcordiaTelemetry?.emit('signup_error', {error: /^HTTP/.test(err?.message || '') ? 'http' : 'unknown'});
+      window.ConcordiaTelemetry?.emit('signup_error', {stage:'save', error: /^HTTP/.test(err?.message || '') ? 'http' : 'unknown'});
       els.saveSignupBtn.disabled = false;
       els.saveStatus.textContent = 'Din tilmelding kunne ikke gemmes. Prøv igen.';
     }
