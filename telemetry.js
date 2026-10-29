@@ -3,6 +3,7 @@
 const ENDPOINT='https://concordia-telemetry.oddfellow-concordia35.workers.dev/collect';
 const ALLOWED=new Set(['app_open','tab_view','signup_load','signup_saved','signup_error','calendar_click','activity_load_error','javascript_error']);
 const ALLOWED_TABS=new Set(['overview','loge','initiatives','gallery','about']);
+const ALLOWED_STAGES=new Set(['load','save','unknown']);
 const ALLOWED_CHANNELS=new Set(['apple','google','unknown']);
 const ALLOWED_ERRORS=new Set(['network','timeout','http','invalid_response','unknown']);
 const started=performance.now();
@@ -16,6 +17,7 @@ try{
   event:type,
   tab:ALLOWED_TABS.has(detail.tab)?detail.tab:'unknown',
   channel:ALLOWED_CHANNELS.has(detail.channel)?detail.channel:'unknown',
+  stage:ALLOWED_STAGES.has(detail.stage)?detail.stage:'unknown',
   error:ALLOWED_ERRORS.has(detail.error)?detail.error:'unknown',
   device:device(),
   duration_ms:Number.isFinite(detail.duration_ms)?Math.max(0,Math.min(60000,Math.round(detail.duration_ms))):0,
