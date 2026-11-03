@@ -966,6 +966,10 @@ if(newActivityOpenBtn) newActivityOpenBtn.addEventListener('click', () => {
 });
 
 function openDeepLinkedContent(){
+  if(new URLSearchParams(window.location.search).has('opslag')){
+    activateView('initiatives');
+    return true;
+  }
   const signupId = getDeepLinkedSignupId();
   if(signupId){
     activateView('loge');
