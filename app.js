@@ -1956,11 +1956,22 @@ const SignupApp = (() => {
   function buildCalendarLinks(event, modal = false) {
     if (!event || !event.date) return '';
     const googleUrl = buildGoogleCalendarUrl(event);
-    const icsUrl = buildIcsDataUrl(event);
+    const legacyIcsUrl = buildIcsDataUrl(event);
+    const hosted = new URL('https://concordia-calendar.oddfellow-concordia35.workers.dev/calendar/event.ics');
+    hosted.search = new URLSearchParams({
+      id: String(event.id || event.date),
+      start: formatIcsUtc(getEventStart(event)),
+      end: formatIcsUtc(getEventEnd(event)),
+      title: `${event.title || 'Logeaften'} · Concordia 35`,
+      description: [event.description || '', `Tilmelding: ${new URL('./', window.location.href)}`].filter(Boolean).join('\n\n'),
+      location: event.location || 'Odd Fellow Logen, Slagelse'
+    }).toString();
+    const hostedIcsUrl = hosted.toString();
+    const icsUrl = window.concordiaCalendarReady ? hostedIcsUrl : legacyIcsUrl;
     return `
       <div class="signup-calendar-row" onclick="event.stopPropagation()" aria-label="Føj til kalender">
         <a class="btn soft signup-calendar-btn" href="${esc(googleUrl)}" target="_blank" rel="noopener" aria-label="Føj til Google Kalender"><span aria-hidden="true">📅</span><span>Google</span></a>
-        <a class="btn soft signup-calendar-btn" href="${esc(icsUrl)}" download="${esc(event.id || 'arrangement')}.ics" aria-label="Føj til Apple Kalender eller Outlook"><span aria-hidden="true">📅</span><span>Apple / Outlook</span></a>
+        <a class="btn soft signup-calendar-btn" href="${esc(icsUrl)}" data-apple-calendar-url="${esc(hostedIcsUrl)}" ${window.concordiaCalendarReady ? 'target="_blank" rel="noopener noreferrer"' : `download="${esc(event.id || 'arrangement')}.ics"`} aria-label="Føj til Apple Kalender eller Outlook"><span aria-hidden="true">📅</span><span>Apple / Outlook</span></a>
       </div>
     `;
   }
@@ -3110,3 +3121,20 @@ if('serviceWorker' in navigator){
 }
 
 init();
+
+// Activate hosted single-event links only after the separate service is available.
+// Until deployment, keep the existing download buttons working.
+(async () => {
+  try {
+    const probe = 'https://concordia-calendar.oddfellow-concordia35.workers.dev/calendar/event.ics?start=20261104T183000Z&end=20261104T213000Z';
+    const result = await fetch(probe, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!result.ok || !/text\/calendar/i.test(result.headers.get('content-type') || '')) return;
+    window.concordiaCalendarReady = true;
+    document.querySelectorAll('a[data-apple-calendar-url]').forEach(link => {
+      link.href = link.dataset.appleCalendarUrl;
+      link.removeAttribute('download');
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+    });
+  } catch { /* Existing calendar downloads remain available. */ }
+})();
