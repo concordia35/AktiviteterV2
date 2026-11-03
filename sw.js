@@ -1,4 +1,4 @@
-const CACHE_VERSION = '1.8.0';
+const CACHE_VERSION = '1.8.1';
 const CACHE_PREFIX = 'concordia-aktiviteter-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
