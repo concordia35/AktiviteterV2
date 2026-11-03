@@ -1420,24 +1420,45 @@ const SignupApp = (() => {
       return;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), SHEET_TIMEOUT_MS);
     const sheetLoadStarted = performance.now();
     try {
       els.syncStatus.textContent = background ? 'Viser gemte data · opdaterer…' : 'Henter de nyeste tilmeldinger…';
-      const res = await fetch(`${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=list&t=${Date.now()}`, {
-        cache: 'no-store',
-        signal: controller.signal
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      let data;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), SHEET_TIMEOUT_MS);
+        try {
+          const res = await fetch(`${CONFIG.GOOGLE_APPS_SCRIPT_URL}?action=list&t=${Date.now()}`, {
+            cache: 'no-store',
+            signal: controller.signal
+          });
+          if (!res.ok) {
+            const error = new Error(`HTTP ${res.status}`);
+            error.retryable = res.status === 429 || res.status >= 500;
+            throw error;
+          }
+          data = await res.json();
+          if (!data || !Array.isArray(data.members) || !Array.isArray(data.events) ||
+              !Array.isArray(data.rows || data.signups)) {
+            throw new SyntaxError('Ugyldigt svar med tilmeldingsdata');
+          }
+          break;
+        } catch (error) {
+          const retryable = error?.name === 'AbortError' || error instanceof TypeError || error.retryable;
+          if (attempt === 1 || !retryable || navigator.onLine === false) throw error;
+          els.syncStatus.textContent = 'Forbindelsen driller · prøver igen…';
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
       applySheetData(data);
       window.ConcordiaTelemetry?.emit('signup_load', {duration_ms: performance.now() - sheetLoadStarted});
       saveSheetCache(data);
       els.syncStatus.textContent = 'De nyeste tilmeldinger er hentet.';
     } catch (err) {
       console.warn('Kunne ikke hente tilmeldingsdata', err);
-      window.ConcordiaTelemetry?.emit('signup_error', {stage:'load', error: err?.name === 'AbortError' ? 'timeout' : /^HTTP/.test(err?.message || '') ? 'http' : 'network', duration_ms: performance.now() - sheetLoadStarted});
+      window.ConcordiaTelemetry?.emit('signup_error', {stage:'load', error: err?.name === 'AbortError' ? 'timeout' : /^HTTP/.test(err?.message || '') ? 'http' : err instanceof SyntaxError ? 'invalid_response' : err instanceof TypeError ? 'network' : 'unknown', duration_ms: performance.now() - sheetLoadStarted});
       if (background || state.members.length || state.events.length) {
         els.syncStatus.textContent = 'Viser senest hentede data. Kunne ikke opdatere lige nu.';
       } else {
@@ -1447,8 +1468,6 @@ const SignupApp = (() => {
         state.events = [];
         els.syncStatus.textContent = 'Tilmeldingerne kunne ikke hentes. Prøv at genindlæse siden.';
       }
-    } finally {
-      clearTimeout(timeoutId);
     }
 
     renderMembers();
