@@ -141,39 +141,16 @@
 
     <main id="viewInitiatives" class="view">
       <section class="next-block">
-        <div class="section-title"><span></span><h2>Forslag fra brødrene</h2></div>
+        <div class="section-title"><span></span><h2>Opslagstavlen</h2></div>
         <div class="page-card intro-card">
-          <p>Her kan du foreslå noget nyt eller se, hvad andre brødre har foreslået.</p>
-          <p>Har du kun en idé, skal du vælge <strong>Send et forslag</strong>. Kender du allerede datoen, skal du vælge <strong>Opret en aktivitet med dato</strong>.</p>
-          <div class="initiative-actions">
-            <button id="ideaBankBtn" class="btn primary wide-btn" type="button">💡 Send et forslag</button>
-            <button id="suggestInitiativeBtn" class="btn soft wide-btn" type="button">📅 Opret aktivitet med dato</button>
-          </div>
+          <p>Billard, rafling eller en hyggelig aften sammen? Her deler brødrene små og store invitationer.</p>
+          <button id="ideaBankBtn" class="btn primary wide-btn" type="button">📌 Lav et opslag</button>
+          <p class="section-help">Dit opslag bliver vist, når det er godkendt.</p>
         </div>
       </section>
-
-      <section class="list-block idea-bank-block">
-        <div class="section-title"><span></span><h2>Forslag, du kan støtte</h2></div>
-        <p class="section-help">Tryk på <strong>Jeg er interesseret</strong>, hvis du måske gerne vil deltage. Det er ikke en bindende tilmelding.</p>
-        <div id="ideaPollList" class="idea-list"></div>
-      </section>
-
-      <section class="list-block idea-bank-block">
-        <div class="section-title"><span></span><h2>Forslag, der undersøges</h2></div>
-        <p class="section-help">Her kan du følge forslag, som er modtaget, bliver undersøgt eller er ved at blive planlagt.</p>
-        <div id="ideaPipelineList" class="idea-list"></div>
-      </section>
-
-      <section class="list-block">
-        <div class="section-title"><span></span><h2>Planlagte aktiviteter fra brødrene</h2></div>
-        <p class="section-help">Disse aktiviteter har fået en dato. Tryk på en aktivitet for at læse mere eller tilmelde dig.</p>
-        <div id="initiativeList" class="event-list"></div>
-      </section>
-      <section class="list-block" id="pastInitiativeBlock" hidden>
-        <details><summary>Tidligere aktiviteter fra brødrene</summary><div id="pastInitiativeList" class="event-list archive-list"></div></details>
-      </section>
+      <section class="list-block"><div id="ideaPollList" class="idea-list" aria-live="polite"></div><div id="ideaPipelineList" hidden></div></section>
+      <div hidden><div id="initiativeList"></div><div id="pastInitiativeBlock" hidden><div id="pastInitiativeList"></div></div></div>
     </main>
-
 
     <main id="viewGallery" class="view">
       <section class="page-card gallery-intro-card">
@@ -231,7 +208,7 @@
     <nav class="bottom-nav" aria-label="Navigation">
       <button class="nav-btn active" data-view="overview"><span>▦</span><small>Aktiviteter</small></button>
       <button class="nav-btn" data-view="loge"><span>✓</span><small>Tilmelding</small></button>
-      <button class="nav-btn" data-view="initiatives"><span>💡</span><small>Forslag</small></button>
+      <button class="nav-btn" data-view="initiatives"><span>💡</span><small>Opslagstavle</small></button>
       <button class="nav-btn" data-view="gallery"><span>▧</span><small>Galleri</small></button>
       <button class="nav-btn" data-view="about"><span>ⓘ</span><small>Om</small></button>
     </nav>
@@ -251,34 +228,15 @@
     <div class="sheet">
       <button class="close" data-close-submit-idea aria-label="Luk">×</button>
       <div class="sheet-scroll">
-        <div class="section-title"><span></span><h2>Send et forslag</h2></div>
-        <p class="form-help">Brug denne formular, når du har en idé, men endnu ikke har fastlagt dato og sted. Forslaget bliver først vist, når det er godkendt.</p>
+        <div class="section-title"><span></span><h2>Lav et opslag</h2></div>
+        <p class="form-help">Skriv en kort invitation. Opslaget bliver først synligt efter godkendelse.</p>
         <form id="ideaSubmitForm" class="initiative-form">
-          <label>Titel<input id="newIdeaTitle" type="text" placeholder="F.eks. Ølsmagning, bowling eller foredrag" required></label>
-          <label>Kategori
-            <select id="newIdeaCategory" required>
-              <option value="">Vælg kategori</option>
-              <option>Socialt</option>
-              <option>Foredrag</option>
-              <option>Udflugt</option>
-              <option>Mad & drikke</option>
-              <option>Sport</option>
-              <option>Logeliv</option>
-              <option>Forbedring</option>
-              <option>Andet</option>
-            </select>
-          </label>
-          <label>Hvor mange tror du kunne være interesserede?<input id="newIdeaEstimate" type="text" placeholder="F.eks. 8-12 brødre"></label>
-          <label>Vil du hjælpe med at arrangere?
-            <select id="newIdeaHelp" required>
-              <option value="Nej">Nej</option>
-              <option value="Ja">Ja</option>
-              <option value="Måske">Måske</option>
-            </select>
-          </label>
-          <label>Dit navn<input id="newIdeaName" type="text" placeholder="Skriv dit navn" required></label>
-          <label>Beskrivelse<textarea id="newIdeaText" rows="5" placeholder="Skriv kort hvad idéen går ud på" required></textarea></label>
-          <button id="submitIdeaButton" class="btn primary wide-btn" type="submit">Send forslaget</button>
+          <label>Dit navn<input id="newIdeaName" type="text" maxlength="100" placeholder="Skriv dit navn" required></label>
+          <label>Overskrift<input id="newIdeaTitle" type="text" maxlength="120" placeholder="F.eks. Billard med YBK" required></label>
+          <label>Dato (valgfri)<input id="newIdeaDate" type="date"></label>
+          <label>Klokkeslæt (valgfrit)<input id="newIdeaTime" type="time"></label>
+          <label>Tekst<textarea id="newIdeaText" rows="5" maxlength="1800" placeholder="F.eks. Vi holder billardturnering. Kom ned og sig hej!" required></textarea></label>
+          <button id="submitIdeaButton" class="btn primary wide-btn" type="submit">Send til godkendelse</button>
           <p id="ideaSubmitStatus" class="form-status" aria-live="polite"></p>
         </form>
       </div>

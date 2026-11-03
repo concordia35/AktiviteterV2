@@ -493,7 +493,7 @@ function applyListResponse(data){
   participants = normalized.participants;
   ideas = normalized.ideas;
   ideaVotes = normalized.ideaVotes;
-  initiativer = [...normalized.initiatives, ...plannedIdeasAsInitiatives()];
+  initiativer = []; // Opslagstavlen erstatter den tidligere initiativ- og afstemningsvisning.
 
   initiativesLoadedSuccessfully = true;
   initiativesLoading = false;
@@ -655,8 +655,15 @@ function ideaInterestedCount(item){
 }
 
 function isVisibleIdeaStatus(status){
-  const s = String(status || '').trim().toLowerCase();
-  return ['ny','under behandling','afstemning','planlagt','godkendt'].includes(s);
+  return String(status || '').trim().toLowerCase() === 'godkendt';
+}
+function boardDate(item){
+  return item.date || (item.text || '').match(/(?:^|\n)Dato: (\d{4}-\d{2}-\d{2})/)?.[1] || '';
+}
+function boardToday(){
+  const p = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Copenhagen',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const v = type => p.find(x => x.type === type).value;
+  return `${v('year')}-${v('month')}-${v('day')}`;
 }
 
 function isPollIdeaStatus(status){
@@ -754,33 +761,17 @@ function plannedIdeasAsInitiatives(){
 }
 
 function renderIdeaBank(){
-  if(!ideaPollList || !ideaPipelineList) return;
-  if(ideasLoading){
-    ideaPollList.innerHTML = `<div class="empty"><span class="mini-spinner" aria-hidden="true"></span> Henter forslag...</div>`;
-    ideaPipelineList.innerHTML = '';
-    return;
-  }
-  const polls = ideas.filter(item => isPollIdeaStatus(item.status));
-  ideaPollList.innerHTML = polls.length ? polls.map(item => {
-    const count = ideaInterestedCount(item);
-    return `<article class="idea-card poll-card">
-      <div class="idea-card-head"><span class="idea-icon">🗳</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)} · ${count} ${count === 1 ? 'broder har' : 'brødre har'} vist interesse</p></div></div>
-      <p>${escapeHtml(item.text || 'Kunne dette være noget for dig?')}</p>
-      <button class="btn primary wide-btn" type="button" onclick="openIdeaVote('${escapeAttr(item.id)}')">Jeg er interesseret</button>
-    </article>`;
-  }).join('') : `<div class="empty">Der er ingen forslag, du kan vise interesse for lige nu.</div>`;
-
-  const pipeline = ideas.filter(item => !isPollIdeaStatus(item.status));
-  ideaPipelineList.innerHTML = pipeline.length ? pipeline.map(item => {
-    const count = ideaInterestedCount(item);
-    const statusClass = normalizeKey(item.status).replace(/[^a-z0-9æøå-]/g, '');
-    return `<article class="idea-card pipeline-card">
-      <div class="idea-card-head"><span class="idea-icon">💡</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.category)}${count ? ` · ${count} ${count === 1 ? 'broder har' : 'brødre har'} vist interesse` : ''}</p></div></div>
-      <p>${escapeHtml(item.text || '')}</p>
-      <div class="idea-meta-row"><span class="status-pill ${escapeAttr(statusClass)}">${escapeHtml(ideaStatusLabel(item.status))}</span>${item.help ? `<span>Vil hjælpe med at arrangere: ${escapeHtml(item.help)}</span>` : ''}</div>
-      ${item.note ? `<p class="idea-note">${escapeHtml(item.note)}</p>` : ''}
-    </article>`;
-  }).join('') : `<div class="empty">Der er ingen forslag, som bliver undersøgt lige nu.</div>`;
+  if(!ideaPollList) return;
+  if(ideasLoading){ideaPollList.innerHTML = '<div class="empty">Henter opslag…</div>';return;}
+  const items = ideas.filter(x => isVisibleIdeaStatus(x.status) && (!boardDate(x) || boardDate(x) >= boardToday()));
+  ideaPollList.innerHTML = items.length ? items.map(item => {
+    const day = boardDate(item);
+    const time = item.time || (item.text || '').match(/(?:^|\n)Dato: \d{4}-\d{2}-\d{2} kl\. (\d{2}:\d{2})/)?.[1] || '';
+    const text = (item.text || '').replace(/(?:^|\n)Dato: \d{4}-\d{2}-\d{2}(?: kl\. \d{2}:\d{2})?\s*$/, '').trim();
+    const when = day ? new Date(day+'T12:00:00').toLocaleDateString('da-DK',{day:'numeric',month:'long',year:'numeric'})+(time?' kl. '+time:'') : '';
+    return `<article class="idea-card"><div class="idea-card-head"><span class="idea-icon">📌</span><div><h3>${escapeHtml(item.title)}</h3>${when?`<p>${escapeHtml(when)}</p>`:''}</div></div><p style="white-space:pre-wrap">${escapeHtml(text)}</p><p class="section-help">Slået op af ${escapeHtml(item.name || 'En broder')}</p></article>`;
+  }).join('') : '<div class="empty">Der er ingen opslag lige nu. Har du noget, brødrene skal med til?</div>';
+  if(ideaPipelineList) ideaPipelineList.innerHTML = '';
 }
 
 async function loadIdeasFromSheet(force=false){
@@ -1138,24 +1129,25 @@ window.openIdeaVote = function(id){
 if(ideaSubmitForm){
   ideaSubmitForm.addEventListener('submit', async e => {
     e.preventDefault();
+    const day = $('#newIdeaDate').value;
+    const time = $('#newIdeaTime').value;
+    if(time && !day){ideaSubmitStatus.textContent='Vælg også en dato, når du angiver klokkeslæt.';return;}
+    if(day && day < boardToday()){ideaSubmitStatus.textContent='Vælg en dato fra i dag og frem.';return;}
     const payload = {
-      title: $('#newIdeaTitle').value.trim(),
-      category: $('#newIdeaCategory').value,
-      estimate: $('#newIdeaEstimate').value.trim(),
-      help: $('#newIdeaHelp').value,
+      title: $('#newIdeaTitle').value.trim(), category: 'Opslagstavle', estimate: '', help: 'Nej',
       name: $('#newIdeaName').value.trim(),
-      text: $('#newIdeaText').value.trim()
+      text: $('#newIdeaText').value.trim() + (day ? `\n\nDato: ${day}${time ? ' kl. '+time : ''}` : '')
     };
     submitIdeaButton.disabled = true;
-    ideaSubmitStatus.textContent = 'Sender dit forslag...';
+    ideaSubmitStatus.textContent = 'Sender dit opslag…';
     try{
       await postToAppsScript('submitIdea', payload);
-      ideaSubmitStatus.textContent = '✓ Forslaget er modtaget og skal nu godkendes.';
+      ideaSubmitStatus.textContent = '✓ Dit opslag er sendt til godkendelse.';
       window.__appsScriptCache = {};
       ideaSubmitForm.reset();
       setTimeout(() => ideaSubmitModal.close(), 1400);
     }catch(err){
-      ideaSubmitStatus.textContent = 'Forslaget kunne ikke sendes. Kontrollér forbindelsen og prøv igen.';
+      ideaSubmitStatus.textContent = 'Opslaget kunne ikke sendes. Kontrollér forbindelsen og prøv igen.';
       console.error(err);
     }finally{
       submitIdeaButton.disabled = false;
@@ -2909,13 +2901,13 @@ const NotificationManager = (() => {
         notificationToggleBtn.classList.remove('primary');
         notificationToggleBtn.classList.add('soft');
       }
-      setHelp('Du får besked om nye aktiviteter, nye godkendte forslag, nye billeder og tilmeldingsfrister til logeaftener.');
+      setHelp('Du får besked om nye aktiviteter, nye billeder og tilmeldingsfrister til logeaftener.');
       return;
     }
 
     const dismissed = localStorage.getItem(DISMISSED_KEY) === '1';
     setPromptVisible(!dismissed);
-    if(notificationPromptText) notificationPromptText.textContent = 'Slå beskeder til, så du får besked om nye aktiviteter, forslag, billeder og tilmeldingsfrister.';
+    if(notificationPromptText) notificationPromptText.textContent = 'Slå beskeder til, så du får besked om nye aktiviteter, billeder og tilmeldingsfrister.';
     if(notificationPromptBtn) notificationPromptBtn.textContent = state.permission ? 'Slå til igen' : 'Slå til';
     if(notificationStatusText) notificationStatusText.textContent = state.permission
       ? 'Tilladelsen er givet, men abonnementet er slået fra.'
