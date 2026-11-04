@@ -31,8 +31,6 @@ jobs:
 
       - name: Find onsdagens logeaften og send påmindelse
         env:
-          ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
-          ONESIGNAL_CLOUDFLARE_API_KEY: ${{ secrets.ONESIGNAL_CLOUDFLARE_API_KEY }}
           FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
         run: python3 .github/scripts/remind_signup_deadlines.py
 

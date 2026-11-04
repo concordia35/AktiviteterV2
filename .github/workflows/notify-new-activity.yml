@@ -23,6 +23,4 @@ jobs:
       - name: Find nye aktiviteter og send push
         env:
           BEFORE_SHA: ${{ github.event.before }}
-          ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
-          ONESIGNAL_CLOUDFLARE_API_KEY: ${{ secrets.ONESIGNAL_CLOUDFLARE_API_KEY }}
         run: python3 .github/scripts/notify_new_activity.py
