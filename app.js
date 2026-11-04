@@ -1956,11 +1956,12 @@ const SignupApp = (() => {
   function buildCalendarLinks(event, modal = false) {
     if (!event || !event.date) return '';
     const googleUrl = buildGoogleCalendarUrl(event);
-    const icsUrl = buildIcsDataUrl(event);
+    const hostedCalendar = window.location.hostname === '35concordia.pages.dev';
+    const icsUrl = hostedCalendar ? buildHostedCalendarUrl(event) : buildIcsDataUrl(event);
     return `
       <div class="signup-calendar-row" onclick="event.stopPropagation()" aria-label="Føj til kalender">
         <a class="btn soft signup-calendar-btn" href="${esc(googleUrl)}" target="_blank" rel="noopener" aria-label="Føj til Google Kalender"><span aria-hidden="true">📅</span><span>Google</span></a>
-        <a class="btn soft signup-calendar-btn" href="${esc(icsUrl)}" download="${esc(event.id || 'arrangement')}.ics" aria-label="Føj til Apple Kalender eller Outlook"><span aria-hidden="true">📅</span><span>Apple / Outlook</span></a>
+        <a class="btn soft signup-calendar-btn" href="${esc(icsUrl)}" ${hostedCalendar ? 'target="_blank" rel="noopener"' : `download="${esc(event.id || 'arrangement')}.ics"`} aria-label="Føj til Apple Kalender eller Outlook"><span aria-hidden="true">📅</span><span>Apple / Outlook</span></a>
       </div>
     `;
   }
@@ -1980,6 +1981,18 @@ const SignupApp = (() => {
       location: event.location || 'Odd Fellow Logen, Slagelse'
     });
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  }
+
+  function buildHostedCalendarUrl(event) {
+    const params = new URLSearchParams({
+      id: String(event.id || event.date),
+      start: formatIcsUtc(getEventStart(event)),
+      end: formatIcsUtc(getEventEnd(event)),
+      title: `${event.title || 'Logeaften'} · Concordia 35`,
+      description: [event.description || '', `Tilmelding: ${new URL('./', window.location.href)}`].filter(Boolean).join('\n\n'),
+      location: event.location || 'Odd Fellow Logen, Slagelse'
+    });
+    return `/calendar/event.ics?${params}`;
   }
 
   function buildIcsDataUrl(event) {
