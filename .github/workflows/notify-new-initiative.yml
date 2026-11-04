@@ -30,7 +30,6 @@ jobs:
           fetch-depth: 0
 
       - name: Find nye godkendte initiativer og send push
-        env:
         run: python3 .github/scripts/notify_new_initiative.py
 
       - name: Gem hvilke initiativer der allerede er behandlet
