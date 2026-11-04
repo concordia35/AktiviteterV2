@@ -31,6 +31,7 @@ jobs:
 
       - name: Find onsdagens logeaften og send påmindelse
         env:
+          PUSH_RELAY_TOKEN: ${{ secrets.PUSH_RELAY_TOKEN }}
           FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
         run: python3 .github/scripts/remind_signup_deadlines.py
 
@@ -49,3 +50,4 @@ jobs:
           git commit -m "Opdater tilmeldingspåmindelser [skip ci]"
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
+

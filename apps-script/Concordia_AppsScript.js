@@ -13,7 +13,7 @@ const CONCORDIA_BROTHER_APP_URL = 'https://concordia35.github.io/AktiviteterV2/'
 
 const MEMBER_HEADERS = ['id', 'navn'];
 const EVENT_HEADERS = ['id', 'dato', 'tid', 'titel', 'beskrivelse', 'allowGuests', 'deadline', 'kategori'];
-const SIGNUP_HEADERS = ['timestamp', 'memberId', 'navn', 'eventId', 'deltager', 'mad', 'guest', 'guestName', 'guestFood', 'note'];
+const SIGNUP_HEADERS = ['timestamp', 'memberId', 'navn', 'eventId', 'deltager', 'mad', 'guest', 'guestName', 'guestFood', 'note', 'guestCount'];
 
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action ? e.parameter.action : 'list';
@@ -39,22 +39,17 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  let data;
+  try { data = JSON.parse(e && e.postData && e.postData.contents || '{}'); }
+  catch(err) { return json_({ok:false,success:false,error:'Ugyldigt JSON.'}); }
+  if (data.action === 'sendAutomatedPush') return sendAutomatedConcordiaPush_(data);
+  if (data.action === 'sendPush') return sendConcordiaPush_(data);
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-
+  let acquired = false;
   try {
-    const data = JSON.parse(e.postData.contents || '{}');
+    lock.waitLock(10000); acquired = true;
 
-    // Manuel push fra køkken-appen.
-    // Denne handling må IKKE gemmes som en almindelig tilmelding.
-    if (data.action === 'sendAutomatedPush') {
-      return sendAutomatedConcordiaPush_(data);
-    }
-
-    if (data.action === 'sendPush') {
-      return sendConcordiaPush_(data);
-    }
-
+    if (!String(data.memberId || '').trim() || !normalizeEventId_(data.eventId || '')) throw Error('Medlem og aften skal angives.');
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const sheet = getOrCreate_(ss, SHEETS.SIGNUPS, SIGNUP_HEADERS);
 
@@ -70,7 +65,8 @@ function doPost(e) {
       ynText_(data.guest),
       String(data.guestName || '').trim(),
       ynText_(data.guestFood || data.guestMeal),
-      String(data.note || '').trim()
+      String(data.note || '').trim(),
+      concordiaGuestCount_(data.guestCount, data.guestName, data.guest)
     ]);
 
     rebuildKitchenSheet_();
@@ -79,7 +75,7 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, success: false, error: String(err) });
   } finally {
-    lock.releaseLock();
+    if (acquired) lock.releaseLock();
   }
 }
 
@@ -164,6 +160,7 @@ function getLatestRows_(ss) {
   const guestCol = findCol_(headers, ['guest', 'gaest', 'gæst']);
   const guestNameCol = findCol_(headers, ['guestname', 'gaestensnavn', 'gæstensnavn']);
   const guestFoodCol = findCol_(headers, ['guestfood', 'guestmeal', 'gaestspiser', 'gæstspiser']);
+  const guestCountCol = findCol_(headers, ['guestcount']);
   const noteCol = findCol_(headers, ['note', 'bemaerkning', 'bemærkning']);
 
   const latest = {};
@@ -178,6 +175,7 @@ function getLatestRows_(ss) {
       guest: ynValue_(guestCol === -1 ? '' : row[guestCol]),
       guestName: String(guestNameCol === -1 ? '' : row[guestNameCol]).trim(),
       guestMeal: ynValue_(guestFoodCol === -1 ? '' : row[guestFoodCol]),
+      guestCount: concordiaGuestCount_(guestCountCol === -1 ? '' : row[guestCountCol], guestNameCol === -1 ? '' : row[guestNameCol], guestCol === -1 ? '' : row[guestCol]),
       note: String(noteCol === -1 ? '' : row[noteCol]).trim(),
       updatedAt: toIsoDateTime_(timestampCol === -1 ? new Date() : row[timestampCol]),
       sortIndex: index
@@ -211,9 +209,11 @@ function rebuildKitchenSheet_() {
       .filter(r => r.eventId === event.id && r.attending === 'yes')
       .sort((a, b) => String(a.name).localeCompare(String(b.name), 'da'));
 
-    const brotherMeals = rows.filter(r => r.meal === 'yes').length;
-    const guests = rows.filter(r => r.guest === 'yes').length;
-    const guestMeals = rows.filter(r => r.guestMeal === 'yes').length;
+    const brothers = rows.filter(r => !r.memberId.startsWith('external_'));
+    const external = rows.filter(r => r.memberId.startsWith('external_'));
+    const brotherMeals = brothers.filter(r => r.meal === 'yes').length;
+    const guests = rows.reduce((n,r) => n+r.guestCount,0)+external.length;
+    const guestMeals = rows.reduce((n,r) => n+(r.guestMeal === 'yes' ? r.guestCount : 0),0)+external.filter(r => r.meal === 'yes').length;
     const totalMeals = brotherMeals + guestMeals;
 
     kitchen.getRange(row, 1, 1, 6).merge().setValue(`${formatDate_(event.date)} kl. ${event.time} · ${event.title}`);
@@ -223,7 +223,7 @@ function rebuildKitchenSheet_() {
     kitchen.getRange(row, 1, 1, 5).setValues([['Deltagere', 'Brødre spiser', 'Gæster', 'Gæster spiser', 'Kuverter i alt']]).setFontWeight('bold').setBackground('#f3eadc');
     row++;
 
-    kitchen.getRange(row, 1, 1, 5).setValues([[rows.length, brotherMeals, guests, guestMeals, totalMeals]]);
+    kitchen.getRange(row, 1, 1, 5).setValues([[brothers.length, brotherMeals, guests, guestMeals, totalMeals]]);
     row += 2;
 
     kitchen.getRange(row, 1, 1, 6).setValues([['Navn', 'Mad', 'Gæst', 'Gæstens navn', 'Gæst spiser', 'Bemærkning']]).setFontWeight('bold').setBackground('#f3eadc');
@@ -257,9 +257,20 @@ function getOrCreate_(ss, name, headers) {
 }
 
 function ensureHeaders_(sheet, headers) {
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  }
+  const count = sheet.getLastColumn();
+  if (!count) { sheet.getRange(1,1,1,headers.length).setValues([headers]); return; }
+  const existing = sheet.getRange(1,1,1,count).getValues()[0];
+  // Existing legacy signup fields are A:J. Only append the new count column.
+  if (headers === SIGNUP_HEADERS && count === 10) sheet.getRange(1,11).setValue('guestCount');
+  if (headers === SIGNUP_HEADERS && (count < 10 || normalizeKey_(existing[0]) !== 'timestamp' || (count >= 11 && normalizeKey_(existing[10]) !== 'guestcount'))) throw Error('Tilmeldingskolonnerne stemmer ikke. Ingen tilmelding gemt.');
+}
+
+function concordiaGuestCount_(raw, name, flag) {
+  if (!isYes_(flag)) return 0;
+  const direct = String(raw == null ? '' : raw).trim();
+  if (/^\d+$/.test(direct)) return Math.max(1,Math.min(10,Number(direct)));
+  const match = String(name || '').match(/^(\d{1,2})\s+gæst/i);
+  return match ? Math.max(1,Math.min(10,Number(match[1]))) : 1;
 }
 
 function formatAll_() {
@@ -417,7 +428,7 @@ function concordiaPushStatus_() {
   try {
     const targets = concordiaPushTargets_();
     const missing = targets.filter(t => !String(t.key || '').trim()).map(t => t.name);
-    return {ok:true, version:'concordia-relay-v1', ready:missing.length === 0, targets:targets.map(t => t.name), reason:missing.length ? 'OneSignal-nøgle mangler for: '+missing.join(', ') : ''};
+    return {ok:true, version:'concordia-relay-v2', securityRequired:true, ready:missing.length === 0 && !!PropertiesService.getScriptProperties().getProperty('PUSH_RELAY_TOKEN') && !!PropertiesService.getScriptProperties().getProperty('KITCHEN_PUSH_PIN'), targets:targets.map(t => t.name), reason:missing.length ? 'OneSignal-nøgle mangler for: '+missing.join(', ') : ''};
   } catch (e) { return {ok:false, ready:false, error:String(e.message || e)}; }
 }
 
@@ -492,12 +503,41 @@ function deliverConcordiaPush_(data, automated) {
   };
 }
 
+
+// Run once from the Apps Script editor. Existing credentials are preserved.
+function setupConcordiaPushSecurity() {
+  const p = PropertiesService.getScriptProperties();
+  if (!p.getProperty('PUSH_RELAY_TOKEN')) p.setProperty('PUSH_RELAY_TOKEN',Utilities.getUuid()+Utilities.getUuid());
+  if (!p.getProperty('KITCHEN_PUSH_PIN')) p.setProperty('KITCHEN_PUSH_PIN',Utilities.getUuid().replace(/-/g,'').slice(0,8).toUpperCase());
+  console.log('PUSH_RELAY_TOKEN: '+p.getProperty('PUSH_RELAY_TOKEN'));
+  console.log('Kokkens beskedkode: '+p.getProperty('KITCHEN_PUSH_PIN'));
+}
+
+function concordiaPushAuthorized_(data, automated) {
+  const p = PropertiesService.getScriptProperties();
+  const token = p.getProperty('PUSH_RELAY_TOKEN') || '';
+  if (token && String(data.relayToken || '') === token) return true;
+  if (automated) return false;
+  const pin = p.getProperty('KITCHEN_PUSH_PIN') || '';
+  if (!pin) return false;
+  const cache = CacheService.getScriptCache();
+  const failures = Number(cache.get('push-pin-failures') || 0);
+  if (failures >= 10) return false;
+  if (String(data.pin || '').toUpperCase() === pin.toUpperCase()) {
+    cache.remove('push-pin-failures');return true;
+  }
+  cache.put('push-pin-failures',String(failures+1),600);
+  return false;
+}
+
 function sendConcordiaPush_(data) {
+  if (!concordiaPushAuthorized_(data,false)) return json_({ok:false,success:false,error:'Beskedkoden er forkert eller mangler. Ved gentagne fejl: vent 10 minutter.',code:'push_auth'});
   try { return json_(deliverConcordiaPush_(data,false)); }
-  catch(e) { return json_({ok:false, success:false, error:String(e.message || e)}); }
+  catch(e) { return json_({ok:false, success:false, error:String(e.message || e),requestId:data.requestId || ''}); }
 }
 
 function sendAutomatedConcordiaPush_(data) {
+  if (!concordiaPushAuthorized_(data,true)) return json_({ok:false,success:false,error:'PUSH_RELAY_TOKEN mangler eller er forkert.',code:'push_auth'});
   try {
     const payload = data.payload || {};
     if (!data.requestId) throw Error('Automatiske beskeder kræver et stabilt besked-ID.');
@@ -506,7 +546,7 @@ function sendAutomatedConcordiaPush_(data) {
       message:payload.contents && (payload.contents.en || payload.contents.da),
       url:payload.url || '', name:payload.name || '', requestId:data.requestId
     },true));
-  } catch(e) { return json_({ok:false, success:false, error:String(e.message || e)}); }
+  } catch(e) { return json_({ok:false, success:false, error:String(e.message || e),requestId:data.requestId || ''}); }
 }
 
 function json_(obj) {

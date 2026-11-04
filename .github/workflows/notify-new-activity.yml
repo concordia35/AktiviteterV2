@@ -22,5 +22,7 @@ jobs:
 
       - name: Find nye aktiviteter og send push
         env:
+          PUSH_RELAY_TOKEN: ${{ secrets.PUSH_RELAY_TOKEN }}
           BEFORE_SHA: ${{ github.event.before }}
         run: python3 .github/scripts/notify_new_activity.py
+
