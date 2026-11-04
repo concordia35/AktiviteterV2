@@ -32,6 +32,7 @@ jobs:
 
       - name: Find nye godkendte billeder og send push
         env:
+          PUSH_RELAY_TOKEN: ${{ secrets.PUSH_RELAY_TOKEN }}
           GALLERY_FETCH_TIMEOUT: 120
           GALLERY_FETCH_ATTEMPTS: 3
           GALLERY_FETCH_RETRY_DELAY: 8
@@ -52,3 +53,4 @@ jobs:
           git commit -m "Opdater galleri-notifikationsstatus [skip ci]"
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
+

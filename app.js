@@ -1,4 +1,4 @@
-const APP_VERSION = '1.7.5';
+const APP_VERSION = '1.8.2';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -110,15 +110,48 @@ function byId(id){
 }
 
 
-function googleCalendarUrl(item){
-  if(!item.start || !item.end) return '#';
-  const start = item.date.replaceAll('-','') + 'T' + item.start.replace(':','') + '00';
-  const end = item.date.replaceAll('-','') + 'T' + item.end.replace(':','') + '00';
-  const text = encodeURIComponent(item.title + (item.subtitle ? ' – ' + item.subtitle : ''));
-  const details = encodeURIComponent(`${item.text || item.description || ''}\n\n${item.timeText || ''}`);
-  const location = encodeURIComponent(item.place || 'Odd Fellow Bygningen, Frederiksgade 15, Slagelse');
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
+
+// All calendar dates refer to Denmark, also when the visitor is travelling.
+function calendarCopenhagenDate(day,time){
+  const [y,m,d]=day.split('-').map(Number),[h,min]=time.split(':').map(Number);
+  const wall=Date.UTC(y,m-1,d,h,min);let instant=wall;
+  const fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Copenhagen',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+  for(let i=0;i<3;i++){
+    const parts=Object.fromEntries(fmt.formatToParts(new Date(instant)).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
+    const seen=Date.UTC(parts.year,parts.month-1,parts.day,parts.hour,parts.minute,parts.second);
+    const correction=wall-seen;instant+=correction;if(!correction)break;
+  }
+  return new Date(instant);
 }
+function calendarSpan(item){
+  const startTime=item.start||item.time||'19:30';
+  const start=calendarCopenhagenDate(item.date,startTime);
+  let end;
+  if(item.end){
+    let endDay=item.date;
+    if(item.end<=startTime){const day=new Date(item.date+'T12:00:00Z');day.setUTCDate(day.getUTCDate()+1);endDay=day.toISOString().slice(0,10);}
+    end=calendarCopenhagenDate(endDay,item.end);
+  }else end=new Date(start.getTime()+3*3600000);
+  return {start,end};
+}
+function calendarUtc(d){return d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');}
+function calendarDescription(item){return [item.description||item.text||'',item.timeText||'',`App: ${new URL('./',window.location.href)}`].filter(Boolean).join('\n\n');}
+function calendarGoogleUrl(item){
+  const span=calendarSpan(item);
+  const params=new URLSearchParams({action:'TEMPLATE',text:item.title||'Concordia 35',dates:calendarUtc(span.start)+'/'+calendarUtc(span.end),ctz:'Europe/Copenhagen',details:calendarDescription(item),location:item.location||item.place||'Odd Fellow Logen, Slagelse'});
+  return 'https://calendar.google.com/calendar/render?'+params;
+}
+function calendarAppleUrl(item){
+  const span=calendarSpan(item);
+  const params=new URLSearchParams({id:String(item.id||item.date),start:calendarUtc(span.start),end:calendarUtc(span.end),title:item.title||'Concordia 35',description:calendarDescription(item),location:item.location||item.place||'Odd Fellow Logen, Slagelse'});
+  return 'https://35concordia.pages.dev/calendar/event.ics?'+params;
+}
+function calendarButtons(item){
+  if(!item||!item.date)return '';
+  return `<div class="signup-calendar-row" onclick="event.stopPropagation()" aria-label="Føj til kalender"><a class="btn soft signup-calendar-btn" href="${escapeAttr(calendarGoogleUrl(item))}" target="_blank" rel="noopener">📅 Google</a><a class="btn soft signup-calendar-btn" href="${escapeAttr(calendarAppleUrl(item))}" target="_blank" rel="noopener">📅 Apple / Outlook</a></div>`;
+}
+
+function googleCalendarUrl(item){return calendarGoogleUrl(item);}
 
 function addMinutes(time, minutes){
   const [hours, mins] = String(time || '00:00').split(':').map(Number);
@@ -196,7 +229,7 @@ window.openEvent = function(id){
       <div class="info-row"><span>🔒</span><div>${tag(e.type)}</div></div>
     </div>
     <p class="description">${e.text || ''}</p>
-    ${e.start && e.end ? `<div class="modal-actions"><a class="btn primary" href="${googleCalendarUrl(e)}" target="_blank" rel="noopener">Tilføj kalender</a></div>` : ''}
+    ${e.start && e.end ? calendarButtons(e) : ''}
   `;
   modal.showModal();
 }
@@ -373,7 +406,7 @@ window.openInitiative = function(id){
     ${participantList}
     <div class="modal-actions">
       <button class="btn primary" type="button" onclick="openJoinForInitiative(\'${e.id}\')">Tilmeld mig aktiviteten</button>
-      <a class="btn soft" href="${initiativeCalendarUrl(e)}" target="_blank" rel="noopener">Tilføj kalender</a>
+      ${calendarButtons(e)}
     </div>
     <p class="sheet-status-note">Skriv dit navn og tryk på tilmeldingsknappen. Dit navn vises derefter på deltagerlisten.</p>`;
   modal.showModal();
@@ -1953,91 +1986,8 @@ const SignupApp = (() => {
     return isDeadlinePassed(event) ? `Tilmeldingsfrist udløb ${date} kl. ${time} · framelding er stadig mulig` : `Tilmeld senest ${date} kl. ${time}`;
   }
 
-  function buildCalendarLinks(event, modal = false) {
-    if (!event || !event.date) return '';
-    const googleUrl = buildGoogleCalendarUrl(event);
-    const hostedCalendar = window.location.hostname === '35concordia.pages.dev';
-    const icsUrl = hostedCalendar ? buildHostedCalendarUrl(event) : buildIcsDataUrl(event);
-    return `
-      <div class="signup-calendar-row" onclick="event.stopPropagation()" aria-label="Føj til kalender">
-        <a class="btn soft signup-calendar-btn" href="${esc(googleUrl)}" target="_blank" rel="noopener" aria-label="Føj til Google Kalender"><span aria-hidden="true">📅</span><span>Google</span></a>
-        <a class="btn soft signup-calendar-btn" href="${esc(icsUrl)}" ${hostedCalendar ? 'target="_blank" rel="noopener"' : `download="${esc(event.id || 'arrangement')}.ics"`} aria-label="Føj til Apple Kalender eller Outlook"><span aria-hidden="true">📅</span><span>Apple / Outlook</span></a>
-      </div>
-    `;
-  }
-
-  function buildGoogleCalendarUrl(event) {
-    const start = getEventStart(event);
-    const end = getEventEnd(event);
-    const dates = `${formatGoogleDate(start)}/${formatGoogleDate(end)}`;
-    const appUrl = new URL('./', window.location.href).toString();
-    const details = [event.description || '', `Tilmelding: ${appUrl}`].filter(Boolean).join('\n\n');
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text: `${event.title || 'Logeaften'} · Concordia 35`,
-      dates,
-      ctz: 'Europe/Copenhagen',
-      details,
-      location: event.location || 'Odd Fellow Logen, Slagelse'
-    });
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  }
-
-  function buildHostedCalendarUrl(event) {
-    const params = new URLSearchParams({
-      id: String(event.id || event.date),
-      start: formatIcsUtc(getEventStart(event)),
-      end: formatIcsUtc(getEventEnd(event)),
-      title: `${event.title || 'Logeaften'} · Concordia 35`,
-      description: [event.description || '', `Tilmelding: ${new URL('./', window.location.href)}`].filter(Boolean).join('\n\n'),
-      location: event.location || 'Odd Fellow Logen, Slagelse'
-    });
-    return `/calendar/event.ics?${params}`;
-  }
-
-  function buildIcsDataUrl(event) {
-    const start = getEventStart(event);
-    const end = getEventEnd(event);
-    const title = `${event.title || 'Logeaften'} · Concordia 35`;
-    const appUrl = new URL('./', window.location.href).toString();
-    const description = [event.description || '', `Tilmelding: ${appUrl}`].filter(Boolean).join('\\n\\n');
-    const uid = `${event.id || Date.now()}@concordia35-tilmelding`;
-    const ics = [
-      'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Concordia35//Tilmelding//DA','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
-      `UID:${escapeIcs(uid)}`,
-      `DTSTAMP:${formatIcsUtc(new Date())}`,
-      `DTSTART:${formatIcsUtc(start)}`,
-      `DTEND:${formatIcsUtc(end)}`,
-      `SUMMARY:${escapeIcs(title)}`,
-      `DESCRIPTION:${escapeIcs(description)}`,
-      `LOCATION:${escapeIcs(event.location || 'Odd Fellow Logen, Slagelse')}`,
-      'END:VEVENT','END:VCALENDAR'
-    ].join('\r\n');
-    return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
-  }
-
-  function getEventStart(event) {
-    const time = normalizeTime(event.time || '19:30');
-    return new Date(`${event.date}T${time}:00`);
-  }
-
-  function getEventEnd(event) {
-    const start = getEventStart(event);
-    return new Date(start.getTime() + 3 * 60 * 60 * 1000);
-  }
-
-  function formatGoogleDate(date) {
-    const pad = n => String(n).padStart(2, '0');
-    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
-  }
-
-  function formatIcsUtc(date) {
-    const pad = n => String(n).padStart(2, '0');
-    return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}00Z`;
-  }
-
-  function escapeIcs(value) {
-    return String(value || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  function buildCalendarLinks(event) {
+    return calendarButtons(event ? {...event,title:`${event.title || 'Logeaften'} · Concordia 35`} : null);
   }
 
   function normalizeDate(v) {
@@ -3123,3 +3073,4 @@ if('serviceWorker' in navigator){
 }
 
 init();
+

@@ -1,4 +1,4 @@
-const CACHE_VERSION = '1.8.1';
+const CACHE_VERSION = '1.8.2';
 const CACHE_PREFIX = 'concordia-aktiviteter-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
@@ -70,6 +70,9 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(event.request.url);
   if(url.origin !== self.location.origin) return;
+  // Calendar responses are event-specific and must never use offline fallback.
+  if(url.pathname.endsWith('/calendar/event.ics')) { event.respondWith(fetch(new Request(event.request,{cache:'no-store'}))); return; }
 
   event.respondWith(networkFirst(event.request));
 });
+
