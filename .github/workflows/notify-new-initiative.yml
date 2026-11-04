@@ -32,6 +32,7 @@ jobs:
       - name: Find nye godkendte initiativer og send push
         env:
           ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+          ONESIGNAL_CLOUDFLARE_API_KEY: ${{ secrets.ONESIGNAL_CLOUDFLARE_API_KEY }}
         run: python3 .github/scripts/notify_new_initiative.py
 
       - name: Gem hvilke initiativer der allerede er behandlet

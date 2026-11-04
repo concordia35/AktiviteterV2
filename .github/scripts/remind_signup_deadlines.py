@@ -236,7 +236,7 @@ def make_payload(event: dict) -> dict:
     }
 
 
-def send(payload: dict) -> None:
+def _send_one(payload: dict) -> None:
     if os.getenv("DRY_RUN") == "1":
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return
@@ -357,6 +357,36 @@ def main() -> None:
 
         sent_keys.add(key)
         save_state(sent_keys)
+
+
+
+def send(payload: dict) -> None:
+    """Deliver to both origins; stable keys prevent duplicates on retries."""
+    import uuid
+    legacy_key = os.getenv("ONESIGNAL_API_KEY", "")
+    cloud_key = os.getenv("ONESIGNAL_CLOUDFLARE_API_KEY", "").strip()
+    dry_run = os.getenv("DRY_RUN") == "1"
+    if not dry_run and (not legacy_key.strip() or not cloud_key):
+        raise SystemExit("Begge OneSignal API-nøgler skal være konfigureret.")
+    cloud_payload = dict(payload)
+    cloud_payload["app_id"] = "7081ee09-3c7e-43d9-8d6c-b6a9db28ff31"
+    cloud_payload["url"] = payload.get("url", APP_URL).replace(APP_URL, "https://35concordia.pages.dev/", 1)
+    cloud_payload["included_segments"] = ["Subscribed Users"]
+    failed = False
+    try:
+        for message, key in ((dict(payload), legacy_key), (cloud_payload, cloud_key)):
+            message["idempotency_key"] = str(uuid.uuid5(
+                uuid.NAMESPACE_URL, json.dumps(message, sort_keys=True, ensure_ascii=False)
+            ))
+            os.environ["ONESIGNAL_API_KEY"] = key
+            try:
+                _send_one(message)
+            except SystemExit:
+                failed = True
+    finally:
+        os.environ["ONESIGNAL_API_KEY"] = legacy_key
+    if failed:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
