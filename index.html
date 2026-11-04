@@ -25,7 +25,9 @@
           const workerScope = `${appBasePath}push/onesignal/`;
 
           await OneSignal.init({
-            appId: '6917c2bb-a55c-4899-81c3-6664760c12ed',
+            appId: window.location.hostname === '35concordia.pages.dev'
+              ? '7081ee09-3c7e-43d9-8d6c-b6a9db28ff31'
+              : '6917c2bb-a55c-4899-81c3-6664760c12ed',
 
             welcomeNotification: {
               title: 'Beskeder fra appen er slået til',
