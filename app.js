@@ -1,4 +1,4 @@
-const APP_VERSION = '1.8.2';
+const APP_VERSION = '1.8.3';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -3074,3 +3074,29 @@ if('serviceWorker' in navigator){
 
 init();
 
+
+// Freeze the underlying page for native dialogs, including iOS Safari/PWA.
+(() => {
+  let savedScrollY = null;
+  const syncDialogScrollLock = () => {
+    const isOpen = Boolean(document.querySelector('dialog[open]'));
+    if (isOpen && savedScrollY === null) {
+      savedScrollY = window.scrollY;
+      document.body.style.top = `-${savedScrollY}px`;
+      document.documentElement.classList.add('dialog-open');
+      document.body.classList.add('dialog-open');
+    } else if (!isOpen && savedScrollY !== null) {
+      const restoreY = savedScrollY;
+      savedScrollY = null;
+      document.documentElement.classList.remove('dialog-open');
+      document.body.classList.remove('dialog-open');
+      document.body.style.top = '';
+      window.scrollTo(0, restoreY);
+    }
+  };
+  const observer = new MutationObserver(syncDialogScrollLock);
+  document.querySelectorAll('dialog').forEach(dialog => {
+    observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+  });
+  syncDialogScrollLock();
+})();

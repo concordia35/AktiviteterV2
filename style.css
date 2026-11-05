@@ -602,3 +602,11 @@ summary{font-weight:900;color:var(--red);cursor:pointer}
 .radio-card-group{display:grid;gap:10px}
 .radio-card-group label{display:flex!important;grid-template-columns:none!important;gap:10px;align-items:flex-start;padding:12px;border:1px solid rgba(159,120,59,.22);border-radius:15px;background:rgba(255,255,255,.6);font-weight:850;color:#39271d}
 .radio-card-group input{width:auto!important;margin-top:3px}
+
+/* Keep dialogs stationary while their contents remain scrollable on iPhone. */
+html.dialog-open { overflow: hidden; overscroll-behavior: none; }
+body.dialog-open { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
+.sheet-dialog { position: fixed; overflow: hidden; overscroll-behavior: none; }
+.sheet-scroll { min-height: 0; overflow-x: hidden; overscroll-behavior: none; }
+#signupModal .sheet { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#signupModal input, #signupModal textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
