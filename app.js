@@ -1,4 +1,4 @@
-const APP_VERSION = '1.8.3';
+const APP_VERSION = '1.8.4';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1323,6 +1323,7 @@ const SignupApp = (() => {
     signups: {},
     currentEvent: null,
     currentChoice: {},
+    saving: false,
     pendingDeepLinkId: ''
   };
 
@@ -1374,6 +1375,8 @@ const SignupApp = (() => {
     els.noteInput = document.getElementById('signupNoteInput');
     els.saveSignupBtn = document.getElementById('signupSaveSignupBtn');
     els.saveStatus = document.getElementById('signupSaveStatus');
+    els.cancelActions = document.getElementById('signupCancelActions');
+    els.cancelBtn = document.getElementById('signupCancelBtn');
   }
 
   function init() {
@@ -1408,7 +1411,14 @@ const SignupApp = (() => {
       btn.addEventListener('click', () => chooseMeal(btn.dataset.signupMeal));
     });
     els.guestCount?.addEventListener('change', syncGuest);
-    els.saveSignupBtn?.addEventListener('click', saveSignup);
+    els.saveSignupBtn?.addEventListener('click', () => saveSignup());
+    els.cancelBtn?.addEventListener('click', () => {
+      const event = state.currentEvent;
+      if (state.saving || !event || state.signups[event.id]?.attending !== 'yes') return;
+      if (window.confirm(`Vil du melde afbud til ${event.title} den ${daDate(event.date, false)}? Det gælder også mad og eventuelle gæster.`)) {
+        saveSignup({ cancel: true });
+      }
+    });
   }
 
   function applySheetData(data) {
@@ -1653,10 +1663,11 @@ const SignupApp = (() => {
     const canLateCancel = locked && existing.attending === 'yes';
     els.modalDescription.textContent = locked
       ? (canLateCancel
-          ? 'Tilmeldingsfristen er overskredet. Hvis du er blevet syg eller forhindret, kan du stadig framelde dig.'
+          ? 'Tilmeldingsfristen er overskredet. Du kan stadig melde afbud her.'
           : 'Tilmeldingsfristen er overskredet. Nye tilmeldinger er ikke længere mulige.')
       : (event.description || 'Vælg din tilmelding.');
     els.modalCalendar.innerHTML = buildCalendarLinks(event, true);
+    els.cancelActions.hidden = existing.attending !== 'yes';
     els.guestBlock.hidden = !event.allowGuests;
     els.noteInput.value = state.currentChoice.note;
     els.saveStatus.textContent = locked
@@ -1737,74 +1748,97 @@ const SignupApp = (() => {
     els.guestName.disabled = disabled;
     els.guestMeal.disabled = disabled;
     els.noteInput.disabled = disabled;
-    els.saveSignupBtn.disabled = disabled && !(canLateCancel && state.currentChoice.attending === 'no');
+    els.saveSignupBtn.disabled = state.saving || (disabled && !(canLateCancel && state.currentChoice.attending === 'no'));
+    els.cancelBtn.disabled = state.saving;
     els.saveSignupBtn.textContent = disabled ? (canLateCancel ? 'Gem framelding' : 'Frist overskredet') : 'Gem';
   }
 
-  async function saveSignup() {
+  async function saveSignup({ cancel = false } = {}) {
     const member = storage.member;
-    if (!member || !state.currentEvent) return;
-    if (isDeadlinePassed(state.currentEvent)) {
-      const existing = state.signups[state.currentEvent.id];
-      const isLateCancellation = existing?.attending === 'yes' && state.currentChoice.attending === 'no';
-      if (!isLateCancellation) {
-        els.saveStatus.textContent = 'Tilmeldingsfristen er overskredet. Efter fristen kan du kun framelde dig.';
-        setModalDisabled(true);
-        return;
-      }
+    const event = state.currentEvent;
+    const choice = state.currentChoice;
+    if (state.saving || !member || !event) return;
+
+    const attending = cancel ? 'no' : choice.attending;
+    const existing = state.signups[event.id];
+    const isCancellation = existing?.attending === 'yes' && attending === 'no';
+    if (cancel && !isCancellation) return;
+    if (isDeadlinePassed(event) && !isCancellation) {
+      els.saveStatus.textContent = 'Tilmeldingsfristen er overskredet. Efter fristen kan du kun melde afbud.';
+      choice.locked = true;
+      setModalDisabled(true);
+      return;
     }
-    if (!state.currentChoice.attending) {
+    if (!attending) {
       els.saveStatus.textContent = 'Vælg om du deltager eller ej.';
       return;
     }
-    if (state.currentChoice.attending === 'yes' && !state.currentChoice.meal) {
+    if (attending === 'yes' && !choice.meal) {
       els.saveStatus.textContent = 'Vælg om du spiser med eller ej.';
       return;
     }
 
+    const meal = attending === 'yes' ? choice.meal : 'no';
+    const guestCount = attending === 'yes' ? Math.max(0, Math.min(10, Number.parseInt(els.guestCount.value || '0', 10) || 0)) : 0;
+    const guestMeal = guestCount > 0 && els.guestMeal.checked ? 'yes' : 'no';
     const signup = {
       memberId: member.id,
       name: member.name,
       navn: member.name,
-      eventId: state.currentEvent.id,
-      eventDate: state.currentEvent.date,
-      eventTime: state.currentEvent.time,
-      eventTitle: state.currentEvent.title,
-      attending: state.currentChoice.attending,
-      deltager: state.currentChoice.attending,
-      meal: state.currentChoice.attending === 'yes' ? state.currentChoice.meal : 'no',
-      mad: state.currentChoice.attending === 'yes' ? state.currentChoice.meal : 'no',
-      guest: state.currentChoice.attending === 'yes' && Number.parseInt(els.guestCount.value || '0', 10) > 0 ? 'yes' : 'no',
-      guestCount: state.currentChoice.attending === 'yes' ? Math.max(0, Math.min(10, Number.parseInt(els.guestCount.value || '0', 10) || 0)) : 0,
-      guestName: buildStoredGuestName(
-        state.currentChoice.attending === 'yes' ? Math.max(0, Math.min(10, Number.parseInt(els.guestCount.value || '0', 10) || 0)) : 0,
-        els.guestName.value.trim()
-      ),
-      guestFood: state.currentChoice.attending === 'yes' && Number.parseInt(els.guestCount.value || '0', 10) > 0 && els.guestMeal.checked ? 'yes' : 'no',
-      guestMeal: state.currentChoice.attending === 'yes' && Number.parseInt(els.guestCount.value || '0', 10) > 0 && els.guestMeal.checked ? 'yes' : 'no',
-      note: els.noteInput.value.trim(),
+      eventId: event.id,
+      eventDate: event.date,
+      eventTime: event.time,
+      eventTitle: event.title,
+      attending,
+      deltager: attending,
+      meal,
+      mad: meal,
+      guest: guestCount > 0 ? 'yes' : 'no',
+      guestCount,
+      guestName: buildStoredGuestName(guestCount, els.guestName.value),
+      guestFood: guestMeal,
+      guestMeal,
+      note: cancel ? '' : els.noteInput.value.trim(),
       updatedAt: new Date().toISOString()
     };
 
+    state.saving = true;
+    setModalDisabled(choice.locked);
     try {
       els.saveStatus.textContent = 'Gemmer…';
-      els.saveSignupBtn.disabled = true;
       const res = await fetch(CONFIG.GOOGLE_APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(signup)
       });
       const data = await res.json();
-      if (!(data.ok || data.success)) throw new Error(data.error || 'Ukendt fejl');
-      els.saveStatus.textContent = 'Din tilmelding er gemt.';
+      if (!res.ok || !(data.ok || data.success)) throw new Error(data.error || `HTTP ${res.status}`);
+      if (isCancellation) {
+        state.rows.push(normalizeRow(signup));
+        mergeCurrentUserRows();
+        render();
+      }
+      if (els.modal.open && state.currentChoice === choice) {
+        els.cancelActions.hidden = true;
+        els.saveStatus.textContent = isCancellation ? 'Dit afbud er registreret.' : 'Din tilmelding er gemt.';
+      }
       window.ConcordiaTelemetry?.emit('signup_saved');
       await refreshFromSheet();
-      setTimeout(() => closeModal(), 650);
+      setTimeout(() => {
+        if (els.modal.open && state.currentChoice === choice) closeModal();
+        state.saving = false;
+        if (els.modal.open) setModalDisabled(state.currentChoice.locked);
+      }, 650);
     } catch (err) {
+      state.saving = false;
       console.warn('Kunne ikke gemme tilmelding', err);
       window.ConcordiaTelemetry?.emit('signup_error', {stage:'save', error: /^HTTP/.test(err?.message || '') ? 'http' : 'unknown'});
-      els.saveSignupBtn.disabled = false;
-      els.saveStatus.textContent = 'Din tilmelding kunne ikke gemmes. Prøv igen.';
+      if (els.modal.open) {
+        setModalDisabled(state.currentChoice.locked);
+        if (state.currentChoice === choice) {
+          els.saveStatus.textContent = isCancellation ? 'Dit afbud kunne ikke gemmes. Prøv igen.' : 'Din tilmelding kunne ikke gemmes. Prøv igen.';
+        }
+      }
     }
   }
 
