@@ -268,9 +268,9 @@ function ensureHeaders_(sheet, headers) {
 function concordiaGuestCount_(raw, name, flag) {
   if (!isYes_(flag)) return 0;
   const direct = String(raw == null ? '' : raw).trim();
-  if (/^\d+$/.test(direct)) return Math.max(1,Math.min(10,Number(direct)));
+  if (/^\d+$/.test(direct)) return Math.max(1,Math.min(30,Number(direct)));
   const match = String(name || '').match(/^(\d{1,2})\s+gæst/i);
-  return match ? Math.max(1,Math.min(10,Number(match[1]))) : 1;
+  return match ? Math.max(1,Math.min(30,Number(match[1]))) : 1;
 }
 
 function formatAll_() {
