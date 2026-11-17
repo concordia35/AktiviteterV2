@@ -1,4 +1,4 @@
-const APP_VERSION = '1.8.4';
+const APP_VERSION = '1.8.5';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -1709,7 +1709,7 @@ const SignupApp = (() => {
 
   function syncGuest() {
     if (state.currentChoice.locked) return;
-    const count = Math.max(0, Math.min(10, Number.parseInt(els.guestCount?.value || '0', 10) || 0));
+    const count = Math.max(0, Math.min(30, Number.parseInt(els.guestCount?.value || '0', 10) || 0));
     state.currentChoice.guestCount = count;
     state.currentChoice.guest = count > 0;
     if (!state.currentChoice.guest) {
@@ -1779,7 +1779,7 @@ const SignupApp = (() => {
     }
 
     const meal = attending === 'yes' ? choice.meal : 'no';
-    const guestCount = attending === 'yes' ? Math.max(0, Math.min(10, Number.parseInt(els.guestCount.value || '0', 10) || 0)) : 0;
+    const guestCount = attending === 'yes' ? Math.max(0, Math.min(30, Number.parseInt(els.guestCount.value || '0', 10) || 0)) : 0;
     const guestMeal = guestCount > 0 && els.guestMeal.checked ? 'yes' : 'no';
     const signup = {
       memberId: member.id,
@@ -1850,9 +1850,9 @@ const SignupApp = (() => {
 
   function parseGuestCount(rawCount, storedName, guestFlag) {
     const direct = Number.parseInt(rawCount, 10);
-    if (Number.isFinite(direct) && direct >= 0) return Math.min(10, direct);
+    if (Number.isFinite(direct) && direct >= 0) return Math.min(30, direct);
     const match = String(storedName || '').trim().match(/^(\d{1,2})\s+gæst(?:er)?(?:\s*:|$)/i);
-    if (match) return Math.min(10, Number.parseInt(match[1], 10) || 0);
+    if (match) return Math.min(30, Number.parseInt(match[1], 10) || 0);
     return guestFlag === 'yes' ? 1 : 0;
   }
 
